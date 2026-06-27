@@ -31,9 +31,7 @@ export function AuthDialog({
         onOpenChange(false);
       } else {
         await signUp(email.trim(), password);
-        setInfo(
-          "Conta criada. Se a confirmação por e-mail estiver ativa, confirme no seu e-mail antes de entrar.",
-        );
+        setInfo("Conta criada! Já pode entrar com seu e-mail e senha.");
         setMode("in");
       }
     } catch (err) {
@@ -51,6 +49,14 @@ export function AuthDialog({
             Entre para sincronizar seus dados entre dispositivos. Tudo continua
             funcionando offline.
           </p>
+          {mode === "up" && (
+            <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-300">
+              ⚠️ Use um <b>e-mail verdadeiro</b>. É com ele que você entra em
+              outros aparelhos e recupera a senha. Se errar o e-mail, pode
+              perder o acesso à conta na nuvem (os dados no aparelho continuam
+              salvos).
+            </p>
+          )}
           <div>
             <Label>E-mail</Label>
             <Input
