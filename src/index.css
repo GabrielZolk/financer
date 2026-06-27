@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --border: #e3e6ec;
+  --text: #0f172a;
+  --muted: #64748b;
+  --primary: #4f46e5;
+  --primary-fg: #ffffff;
+  --income: #16a34a;
+  --expense: #dc2626;
+}
+
+.dark {
+  --bg: #0b0f1a;
+  --surface: #121829;
+  --surface-2: #1b2236;
+  --border: #283149;
+  --text: #e6e9f0;
+  --muted: #94a3b8;
+  --primary: #6366f1;
+  --primary-fg: #ffffff;
+  --income: #22c55e;
+  --expense: #f87171;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Numbers align nicely in tables/lists */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* thin scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* ---- entradas animadas (fade + sobe, com cascata via animation-delay) ---- */
+.anim-in {
+  animation: fadeUp 0.45s ease both;
+}
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* barra que "enche" da esquerda (não depende da largura final) */
+.bar-grow {
+  transform-origin: left;
+  animation: growX 0.8s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+@keyframes growX {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-in,
+  .bar-grow {
+    animation: none;
+  }
+}
+
+/* máscara de PIN sem usar type=password (evita autofill de login do navegador) */
+.pin-mask {
+  -webkit-text-security: disc;
+  text-security: disc;
+}
+
+/* sub-itens de lançamento dividido: fio em árvore colorido (var --c) */
+.split-item {
+  position: relative;
+  padding-left: 22px;
+}
+.split-item::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: -6px;
+  height: calc(50% + 6px);
+  width: 13px;
+  border-left: 2px solid var(--c, var(--border));
+  border-bottom: 2px solid var(--c, var(--border));
+  border-bottom-left-radius: 7px;
+  opacity: 0.85;
+}

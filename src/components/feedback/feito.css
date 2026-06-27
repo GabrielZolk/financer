@@ -1,0 +1,218 @@
+/* Animações de confirmação "Feito!" — usadas pelo overlay celebrate(). */
+
+.feito-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: rgba(5, 7, 13, 0.55);
+  backdrop-filter: blur(2px);
+  animation: feito-fade 0.2s ease both;
+}
+@keyframes feito-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.feito-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 28px 36px;
+  border-radius: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.6);
+  animation: feito-pop 0.3s cubic-bezier(0.2, 1.3, 0.4, 1) both;
+}
+@keyframes feito-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.feito-text {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  opacity: 0;
+  animation: feito-rise 0.4s ease 0.2s both;
+}
+.feito-label {
+  font-size: 14px;
+  color: var(--muted);
+  opacity: 0;
+  animation: feito-rise 0.4s ease 0.3s both;
+}
+@keyframes feito-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------- check (B) ---------- */
+.feito-check {
+  width: 96px;
+  height: 96px;
+  overflow: visible;
+}
+.feito-check .ring {
+  stroke: var(--income);
+  stroke-width: 3;
+  fill: none;
+  stroke-dasharray: 295;
+  stroke-dashoffset: 295;
+  animation: feito-draw 0.5s ease-out forwards;
+}
+.feito-check .tick {
+  stroke: var(--income);
+  stroke-width: 6;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  animation: feito-draw 0.35s ease-out 0.45s forwards;
+}
+.feito-check .glow {
+  fill: var(--income);
+  opacity: 0;
+  transform-origin: center;
+  animation: feito-pulse 0.7s ease-out 0.45s;
+}
+@keyframes feito-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes feito-pulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.35;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* ---------- coin (A) ---------- */
+.feito-coinwrap {
+  perspective: 600px;
+}
+.feito-coin-out {
+  animation: feito-coinpop 0.6s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.feito-coin {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  transform-style: preserve-3d;
+  background: radial-gradient(circle at 35% 30%, #fde68a, #f59e0b 70%, #d97706);
+  box-shadow:
+    0 10px 26px -6px rgba(245, 158, 11, 0.6),
+    inset 0 -6px 10px rgba(180, 83, 9, 0.5);
+  display: grid;
+  place-items: center;
+  animation: feito-spin 0.9s ease-out both;
+}
+.feito-coin span {
+  font-size: 44px;
+  font-weight: 900;
+  color: #b45309;
+}
+@keyframes feito-coinpop {
+  0% {
+    transform: scale(0);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes feito-spin {
+  from {
+    transform: rotateY(0);
+  }
+  to {
+    transform: rotateY(720deg);
+  }
+}
+
+/* ---------- confetti (C) ---------- */
+.feito-confetti-stage {
+  position: relative;
+  width: 120px;
+  height: 70px;
+  display: grid;
+  place-items: center;
+}
+.feito-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--income);
+  letter-spacing: -0.4px;
+  opacity: 0;
+  animation: feito-valueup 0.6s cubic-bezier(0.2, 1.2, 0.4, 1) 0.1s both;
+}
+@keyframes feito-valueup {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.92);
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.feito-confetti {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: feito-conf 1s ease-out forwards;
+}
+@keyframes feito-conf {
+  0% {
+    transform: translate(0, 0) rotate(0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) rotate(var(--rot));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feito-overlay *,
+  .feito-overlay {
+    animation-duration: 0.01ms !important;
+  }
+}

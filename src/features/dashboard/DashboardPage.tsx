@@ -1,0 +1,386 @@
+import { useMemo, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { Plus, Eye, EyeOff, Lock, CalendarClock, Repeat, CreditCard } from "lucide-react";
+import { useAccounts, useAllTransactions, useCategories } from "@/db/hooks";
+import { db } from "@/db/schema";
+import {
+  netWorth,
+  cashflow,
+  spendingBreakdown,
+  upcomingDue,
+  PRIVATE_BUCKET,
+} from "@/lib/calc";
+import { projectedNet, lastDayOfMonth } from "@/lib/recurrence";
+import { formatMoney } from "@/lib/money";
+import { currentMonth, cn } from "@/lib/utils";
+import { useSettings, makeRateFn } from "@/lib/settings";
+import { usePrivacy, isListed } from "@/lib/privacy";
+import { Button, Card } from "@/components/ui/primitives";
+import { Sparkline } from "@/components/ui/Sparkline";
+import { CategoryIcon } from "@/components/ui/CategoryIcon";
+import { PageHeader } from "@/components/PageHeader";
+import { TransactionForm } from "@/features/transactions/TransactionForm";
+import { TransactionItem } from "@/features/transactions/TransactionItem";
+
+function shiftMonth(month: string, delta: number): string {
+  const [y, m] = month.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthShort(month: string): string {
+  return new Date(month + "-01T00:00:00")
+    .toLocaleDateString("pt-BR", { month: "short" })
+    .replace(".", "");
+}
+
+export function DashboardPage() {
+  const accounts = useAccounts();
+  const transactions = useAllTransactions();
+  const categoriesArr = useCategories();
+  const settings = useSettings();
+  const { mode: privacyMode } = usePrivacy();
+  const [formOpen, setFormOpen] = useState(false);
+  const [hideBalance, setHideBalance] = useState(false);
+
+  const thisMonth = currentMonth();
+  const [selectedMonth, setSelectedMonth] = useState(thisMonth);
+  const monthOptions = useMemo(
+    () => [shiftMonth(thisMonth, -2), shiftMonth(thisMonth, -1), thisMonth],
+    [thisMonth],
+  );
+
+  const from = `${selectedMonth}-01`;
+  const to = `${selectedMonth}-31`;
+
+  const rate = useMemo(
+    () => makeRateFn(settings.baseCurrency, settings.rates),
+    [settings.baseCurrency, settings.rates],
+  );
+
+  const totalBalance = useMemo(
+    () => netWorth(accounts, transactions, settings.baseCurrency, rate),
+    [accounts, transactions, settings.baseCurrency, rate],
+  );
+
+  // série de saldo consolidado no fim de cada um dos últimos 6 meses
+  const sparkValues = useMemo(() => {
+    const months: string[] = [];
+    let m = thisMonth;
+    for (let i = 0; i < 6; i++) {
+      months.unshift(m);
+      m = shiftMonth(m, -1);
+    }
+    return months.map((mm) =>
+      netWorth(accounts, transactions, settings.baseCurrency, rate, {
+        upToDate: `${mm}-31`,
+      }),
+    );
+  }, [accounts, transactions, settings.baseCurrency, rate, thisMonth]);
+
+  const cf = useMemo(
+    () => cashflow(transactions, from, to),
+    [transactions, from, to],
+  );
+
+  // recorrências (pra lembretes + saldo previsto)
+  const recurrences = useLiveQuery(
+    async () => (await db.recurrences.toArray()).filter((r) => r.deleted === 0),
+    [],
+    [],
+  );
+  const due = useMemo(
+    () => upcomingDue(recurrences, accounts, transactions),
+    [recurrences, accounts, transactions],
+  );
+  const previsto = useMemo(
+    () => totalBalance + projectedNet(recurrences, lastDayOfMonth(thisMonth)),
+    [totalBalance, recurrences, thisMonth],
+  );
+
+  const accountMap = useMemo(
+    () => new Map(accounts.map((a) => [a.id, a])),
+    [accounts],
+  );
+  const categoryMap = useMemo(
+    () => new Map(categoriesArr.map((c) => [c.id, c])),
+    [categoriesArr],
+  );
+
+  const spending = useMemo(() => {
+    const bd = spendingBreakdown(transactions, from, to, privacyMode);
+    const entries = bd.items.map((i) => ({ ...i, isPrivate: false }));
+    if (bd.privateTotal > 0)
+      entries.push({
+        categoryId: PRIVATE_BUCKET,
+        total: bd.privateTotal,
+        isPrivate: true,
+      });
+    entries.sort((a, b) => b.total - a.total);
+    const TOPN = 6;
+    const top = entries.slice(0, TOPN);
+    const restTotal = entries.slice(TOPN).reduce((s, t) => s + t.total, 0);
+    return { total: bd.total, top, restTotal };
+  }, [transactions, from, to, privacyMode]);
+
+  const recent = useMemo(
+    () =>
+      [...transactions]
+        .filter((t) => isListed(t, privacyMode))
+        .sort((a, b) =>
+          a.date === b.date
+            ? b.createdAt.localeCompare(a.createdAt)
+            : b.date.localeCompare(a.date),
+        )
+        .slice(0, 5),
+    [transactions, privacyMode],
+  );
+
+  const monthLabel = new Date(from + "T00:00:00").toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+  });
+
+  return (
+    <div>
+      <PageHeader
+        title="Início"
+        subtitle={capitalize(monthLabel)}
+        action={
+          <Button onClick={() => setFormOpen(true)}>
+            <Plus size={18} /> Lançar
+          </Button>
+        }
+      />
+
+      {/* Card de saldo (estilo B: minimal + sparkline) */}
+      <Card className="anim-in mb-4 overflow-hidden">
+        <div className="inline-flex gap-0.5 rounded-xl bg-surface-2 p-1">
+          {monthOptions.map((mm) => (
+            <button
+              key={mm}
+              onClick={() => setSelectedMonth(mm)}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-semibold capitalize transition-colors",
+                selectedMonth === mm
+                  ? "bg-surface text-text shadow-sm"
+                  : "text-muted hover:text-text",
+              )}
+            >
+              {monthShort(mm)}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 flex items-center justify-between text-sm text-muted">
+          <span>Saldo consolidado</span>
+          <button
+            onClick={() => setHideBalance((v) => !v)}
+            className="rounded-lg p-1 hover:bg-surface-2"
+            aria-label={hideBalance ? "Mostrar saldo" : "Esconder saldo"}
+          >
+            {hideBalance ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
+
+        <p className="mt-0.5 text-[32px] font-extrabold leading-tight tracking-tight tabular">
+          {hideBalance
+            ? "R$ ••••••"
+            : formatMoney(totalBalance, settings.baseCurrency)}
+        </p>
+
+        <div className="mb-3 mt-3 flex gap-5 text-sm">
+          <span className="text-muted">
+            Entradas{" "}
+            <b className="font-bold text-income">
+              +{formatMoney(cf.income, settings.baseCurrency)}
+            </b>
+          </span>
+          <span className="text-muted">
+            Saídas{" "}
+            <b className="font-bold text-expense">
+              −{formatMoney(cf.expense, settings.baseCurrency)}
+            </b>
+          </span>
+        </div>
+
+        {!hideBalance &&
+          selectedMonth === thisMonth &&
+          previsto !== totalBalance && (
+            <p className="mb-3 -mt-1 text-xs text-muted">
+              Previsto fim do mês:{" "}
+              <b className="tabular text-text">
+                {formatMoney(previsto, settings.baseCurrency)}
+              </b>{" "}
+              <span className="text-[11px]">(com recorrências)</span>
+            </p>
+          )}
+
+        <div className="-mx-4 -mb-4">
+          <Sparkline values={sparkValues} />
+        </div>
+      </Card>
+
+      {/* Próximos vencimentos (lembretes) */}
+      {due.length > 0 && (
+        <Card className="anim-in mb-4" style={{ animationDelay: "40ms" }}>
+          <div className="mb-2 flex items-center gap-2">
+            <CalendarClock size={18} className="text-primary" />
+            <h2 className="text-base font-semibold">Próximos vencimentos</h2>
+          </div>
+          <div className="space-y-0.5">
+            {due.map((d, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-2.5 py-1 text-sm"
+              >
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted">
+                  {d.kind === "invoice" ? (
+                    <CreditCard size={14} />
+                  ) : (
+                    <Repeat size={14} />
+                  )}
+                </span>
+                <span className="flex-1 truncate">{d.label}</span>
+                <span className="shrink-0 text-xs text-muted">
+                  {dueDateLabel(d.date)}
+                </span>
+                <span
+                  className="shrink-0 tabular text-sm font-semibold"
+                  style={{
+                    color:
+                      d.flow === "income" ? "var(--income)" : "var(--text)",
+                  }}
+                >
+                  {formatMoney(d.amountCents, settings.baseCurrency)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Gastos do mês (barra empilhada + legenda) */}
+      {spending.total > 0 && (
+        <Card className="anim-in mb-4" style={{ animationDelay: "80ms" }}>
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="text-base font-semibold">Gastos do mês</h2>
+            <span className="tabular font-bold">
+              {formatMoney(spending.total, settings.baseCurrency)}
+            </span>
+          </div>
+
+          {/* barra empilhada */}
+          <div className="bar-grow flex h-4 overflow-hidden rounded-lg bg-surface-2">
+            {spending.top.map((t) => {
+              const cat =
+                !t.isPrivate && t.categoryId
+                  ? categoryMap.get(t.categoryId)
+                  : undefined;
+              return (
+                <div
+                  key={t.categoryId ?? "none"}
+                  style={{
+                    width: `${(t.total / spending.total) * 100}%`,
+                    backgroundColor: t.isPrivate
+                      ? "#64748b"
+                      : (cat?.color ?? "#94a3b8"),
+                  }}
+                />
+              );
+            })}
+            {spending.restTotal > 0 && (
+              <div
+                style={{
+                  width: `${(spending.restTotal / spending.total) * 100}%`,
+                  backgroundColor: "#64748b",
+                }}
+              />
+            )}
+          </div>
+
+          {/* legenda */}
+          <div className="mt-3 space-y-0.5">
+            {spending.top.map((t) => {
+              if (t.isPrivate) {
+                return (
+                  <div
+                    key="private"
+                    className="flex items-center gap-2.5 py-0.5 text-sm"
+                  >
+                    <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-[#64748b]/20 text-[#94a3b8]">
+                      <Lock size={13} />
+                    </span>
+                    <span className="flex-1 truncate text-muted">Privado</span>
+                    <span className="tabular text-muted">•••••</span>
+                  </div>
+                );
+              }
+              const cat = t.categoryId ? categoryMap.get(t.categoryId) : undefined;
+              return (
+                <div
+                  key={t.categoryId ?? "none"}
+                  className="flex items-center gap-2.5 py-0.5 text-sm"
+                >
+                  <CategoryIcon
+                    icon={cat?.icon}
+                    color={cat?.color ?? "#94a3b8"}
+                    size={26}
+                  />
+                  <span className="flex-1 truncate">
+                    {cat?.name ?? "Sem categoria"}
+                  </span>
+                  <span className="tabular text-muted">
+                    {formatMoney(t.total)}
+                  </span>
+                </div>
+              );
+            })}
+            {spending.restTotal > 0 && (
+              <div className="flex items-center gap-2.5 py-0.5 text-sm">
+                <span className="h-[26px] w-[26px] shrink-0 rounded-full bg-[#64748b]/20" />
+                <span className="flex-1 text-muted">Outros</span>
+                <span className="tabular text-muted">
+                  {formatMoney(spending.restTotal)}
+                </span>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {/* Recentes */}
+      {recent.length > 0 && (
+        <Card className="anim-in p-2" style={{ animationDelay: "160ms" }}>
+          <h2 className="px-2 py-1 text-base font-semibold">Recentes</h2>
+          {recent.map((tx) => (
+            <TransactionItem
+              key={tx.id}
+              tx={tx}
+              accounts={accountMap}
+              categories={categoryMap}
+            />
+          ))}
+        </Card>
+      )}
+
+      <TransactionForm open={formOpen} onOpenChange={setFormOpen} />
+    </div>
+  );
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function dueDateLabel(date: string): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(date + "T00:00:00");
+  const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+  if (diff <= 0) return "hoje";
+  if (diff === 1) return "amanhã";
+  if (diff <= 13) return `em ${diff} dias`;
+  const [, m, dd] = date.split("-");
+  return `${dd}/${m}`;
+}
