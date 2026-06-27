@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button, Input, Label } from "@/components/ui/primitives";
-import { signIn, signUp } from "@/lib/sync";
+import { signIn, signUp, signInWithGoogle } from "@/lib/sync";
 
 export function AuthDialog({
   open,
@@ -16,6 +16,17 @@ export function AuthDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+
+  async function google() {
+    setError("");
+    setBusy(true);
+    try {
+      await signInWithGoogle(); // redireciona pra o Google
+    } catch (err) {
+      setError(translateError((err as Error).message));
+      setBusy(false);
+    }
+  }
 
   async function submit() {
     setError("");
@@ -57,6 +68,23 @@ export function AuthDialog({
               salvos).
             </p>
           )}
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={google}
+            disabled={busy}
+          >
+            <span className="mr-2 grid h-5 w-5 place-items-center rounded-full bg-white text-[13px] font-bold text-[#4285F4]">
+              G
+            </span>
+            Continuar com Google
+          </Button>
+
+          <div className="flex items-center gap-3 text-xs text-muted">
+            <span className="h-px flex-1 bg-border" /> ou{" "}
+            <span className="h-px flex-1 bg-border" />
+          </div>
+
           <div>
             <Label>E-mail</Label>
             <Input
