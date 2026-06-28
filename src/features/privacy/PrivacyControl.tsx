@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Lock, LockOpen, ShieldCheck } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button, Input, Label } from "@/components/ui/primitives";
@@ -15,6 +16,7 @@ import {
 type Step = null | "setup" | "lock" | "choose" | "pin";
 
 export function PrivacyControl() {
+  const { t } = useTranslation();
   const { configured, unlocked, mode } = usePrivacy();
   const [step, setStep] = useState<Step>(null);
   const [chosen, setChosen] = useState<"partial" | "full">("full");
@@ -39,11 +41,11 @@ export function PrivacyControl() {
   async function handleLock() {
     setError("");
     if (pin.length < 4) {
-      setError("Use um PIN de pelo menos 4 dígitos.");
+      setError(t("common.errPinMin"));
       return;
     }
     if (pin !== pin2) {
-      setError("Os PINs não conferem.");
+      setError(t("common.errPinMismatch"));
       return;
     }
     setBusy(true);
@@ -58,11 +60,11 @@ export function PrivacyControl() {
   async function handleSetup() {
     setError("");
     if (pin.length < 4) {
-      setError("Use um PIN de pelo menos 4 dígitos.");
+      setError(t("common.errPinMin"));
       return;
     }
     if (pin !== pin2) {
-      setError("Os PINs não conferem.");
+      setError(t("common.errPinMismatch"));
       return;
     }
     setBusy(true);
@@ -81,7 +83,7 @@ export function PrivacyControl() {
       await unlock(pin, chosen);
       close();
     } catch {
-      setError("PIN incorreto.");
+      setError(t("common.errPinWrong"));
     } finally {
       setBusy(false);
     }
@@ -104,13 +106,18 @@ export function PrivacyControl() {
           "flex h-9 w-9 items-center justify-center rounded-xl bg-surface-2 transition-colors hover:bg-border",
           color,
         )}
-        aria-label="Privacidade"
+        aria-label={t("priv.aria")}
         title={
           !configured
-            ? "Configurar privacidade"
+            ? t("priv.tipConfigure")
             : unlocked
-              ? `Privado: ${mode === "full" ? "tudo visível" : "parcial"} — clique para travar`
-              : "Privado travado — clique para destravar"
+              ? t("priv.tipUnlocked", {
+                  mode:
+                    mode === "full"
+                      ? t("priv.modeAllVisible")
+                      : t("priv.modePartial"),
+                })
+              : t("priv.tipLocked")
         }
       >
         <Icon size={18} />
@@ -122,27 +129,20 @@ export function PrivacyControl() {
           onClick={() => setMode(mode === "full" ? "partial" : "full")}
           className="ml-1 hidden rounded-lg bg-surface-2 px-2 py-1 text-[11px] font-semibold text-muted hover:text-text sm:block"
         >
-          {mode === "full" ? "tudo" : "parcial"}
+          {mode === "full" ? t("priv.toggleAll") : t("priv.togglePartial")}
         </button>
       )}
 
       <Dialog open={step !== null} onOpenChange={(o) => !o && close()}>
         {step === "setup" && (
-          <DialogContent title="Proteger gastos privados">
+          <DialogContent title={t("priv.setupTitle")}>
             <div className="space-y-4">
               <div className="flex items-start gap-2 rounded-xl bg-surface-2 p-3 text-sm text-muted">
                 <ShieldCheck size={18} className="mt-0.5 shrink-0 text-primary" />
-                <span>
-                  Crie um PIN. Os lançamentos marcados como privados serão{" "}
-                  <b className="text-text">criptografados</b> — ninguém vê sem
-                  ele, nem aqui nem na nuvem.{" "}
-                  <b className="text-expense">
-                    Se esquecer o PIN, esses dados não podem ser recuperados.
-                  </b>
-                </span>
+                <span>{t("priv.setupWarn")}</span>
               </div>
               <div>
-                <Label>PIN</Label>
+                <Label>{t("common.pin")}</Label>
                 <Input
                   type="text"
                   autoComplete="off"
@@ -150,12 +150,12 @@ export function PrivacyControl() {
                   className="pin-mask"
                   value={pin}
                   onChange={(e) => setPin(e.target.value)}
-                  placeholder="mín. 4 dígitos"
+                  placeholder={t("common.pinMin")}
                   autoFocus
                 />
               </div>
               <div>
-                <Label>Repita o PIN</Label>
+                <Label>{t("common.repeatPin")}</Label>
                 <Input
                   type="text"
                   autoComplete="off"
@@ -168,21 +168,18 @@ export function PrivacyControl() {
               </div>
               {error && <p className="text-sm text-expense">{error}</p>}
               <Button className="w-full" onClick={handleSetup} disabled={busy}>
-                {busy ? "Criando…" : "Ativar privacidade"}
+                {busy ? t("priv.creating") : t("priv.activate")}
               </Button>
             </div>
           </DialogContent>
         )}
 
         {step === "lock" && (
-          <DialogContent title="Travar privados">
+          <DialogContent title={t("priv.lockTitle")}>
             <div className="space-y-4">
-              <p className="text-sm text-muted">
-                Defina o PIN para esconder os privados. Pode ser um novo a cada
-                vez — o último definido é o que vai destravar.
-              </p>
+              <p className="text-sm text-muted">{t("priv.lockHint")}</p>
               <div>
-                <Label>PIN</Label>
+                <Label>{t("common.pin")}</Label>
                 <Input
                   type="text"
                   autoComplete="off"
@@ -190,12 +187,12 @@ export function PrivacyControl() {
                   className="pin-mask"
                   value={pin}
                   onChange={(e) => setPin(e.target.value)}
-                  placeholder="mín. 4 dígitos"
+                  placeholder={t("common.pinMin")}
                   autoFocus
                 />
               </div>
               <div>
-                <Label>Repita o PIN</Label>
+                <Label>{t("common.repeatPin")}</Label>
                 <Input
                   type="text"
                   autoComplete="off"
@@ -208,27 +205,27 @@ export function PrivacyControl() {
               </div>
               {error && <p className="text-sm text-expense">{error}</p>}
               <Button className="w-full" onClick={handleLock} disabled={busy}>
-                {busy ? "Travando…" : "Travar agora"}
+                {busy ? t("priv.locking") : t("priv.lockNow")}
               </Button>
             </div>
           </DialogContent>
         )}
 
         {step === "choose" && (
-          <DialogContent title="Destravar privados">
+          <DialogContent title={t("priv.unlockTitle")}>
             <div className="space-y-3">
-              <p className="text-sm text-muted">Como você quer ver agora?</p>
+              <p className="text-sm text-muted">{t("priv.howSee")}</p>
               <Choice
-                title="👁️ Mostrar tudo"
-                desc="Exibe os lançamentos privados e soma no total."
+                title={t("priv.showAllTitle")}
+                desc={t("priv.showAllDesc")}
                 onClick={() => {
                   setChosen("full");
                   setStep("pin");
                 }}
               />
               <Choice
-                title="➗ Parcial (só somar)"
-                desc="Mantém escondidos, mas inclui os valores no total — pro número ficar certo sem expor o quê."
+                title={t("priv.partialTitle")}
+                desc={t("priv.partialDesc")}
                 onClick={() => {
                   setChosen("partial");
                   setStep("pin");
@@ -239,10 +236,15 @@ export function PrivacyControl() {
         )}
 
         {step === "pin" && (
-          <DialogContent title="Digite seu PIN">
+          <DialogContent title={t("priv.enterPinTitle")}>
             <div className="space-y-4">
               <p className="text-sm text-muted">
-                Modo: <b className="text-text">{chosen === "full" ? "mostrar tudo" : "parcial"}</b>
+                {t("priv.modeLabel", {
+                  mode:
+                    chosen === "full"
+                      ? t("priv.modeShowAll")
+                      : t("priv.modePartial"),
+                })}
               </p>
               <Input
                 type="text"
@@ -251,7 +253,7 @@ export function PrivacyControl() {
                 className="pin-mask"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
-                placeholder="PIN"
+                placeholder={t("common.pin")}
                 autoFocus
                 onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
               />
@@ -265,10 +267,10 @@ export function PrivacyControl() {
                     setError("");
                   }}
                 >
-                  Voltar
+                  {t("common.back")}
                 </Button>
                 <Button className="flex-1" onClick={handleUnlock} disabled={busy}>
-                  {busy ? "…" : "Destravar"}
+                  {busy ? "…" : t("priv.unlockBtn")}
                 </Button>
               </div>
             </div>

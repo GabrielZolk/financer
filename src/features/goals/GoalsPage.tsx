@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { useTranslation } from "react-i18next";
 import { Plus, Target, Trash2, PiggyBank, Check, Pencil, X } from "lucide-react";
 import { db } from "@/db/schema";
 import { create, update, softDelete } from "@/db/repo";
@@ -7,6 +8,7 @@ import { useAccounts, useAllTransactions } from "@/db/hooks";
 import { balancesByAccount } from "@/lib/calc";
 import { goalPotes, goalSaved } from "@/lib/calc/goals";
 import { formatMoney, parseMoney } from "@/lib/money";
+import { formatDate } from "@/lib/format";
 import { confirmDelete } from "@/lib/utils";
 import {
   Button,
@@ -27,6 +29,7 @@ function today(): string {
 }
 
 export function GoalsPage() {
+  const { t } = useTranslation();
   const goals = useLiveQuery(
     async () => (await db.goals.toArray()).filter((g) => g.deleted === 0),
     [],
@@ -50,7 +53,7 @@ export function GoalsPage() {
   return (
     <div>
       <PageHeader
-        title="Metas"
+        title={t("goals.title")}
         action={
           <Button
             onClick={() => {
@@ -58,7 +61,7 @@ export function GoalsPage() {
               setFormOpen(true);
             }}
           >
-            <Plus size={18} /> Nova
+            <Plus size={18} /> {t("goals.new")}
           </Button>
         }
       />
@@ -66,8 +69,8 @@ export function GoalsPage() {
       {goals.length === 0 ? (
         <EmptyState
           icon={<Target size={28} />}
-          title="Nenhuma meta"
-          description="Crie metas de poupança com valor-alvo e prazo."
+          title={t("goals.emptyTitle")}
+          description={t("goals.emptyDesc")}
           action={
             <Button
               onClick={() => {
@@ -75,7 +78,7 @@ export function GoalsPage() {
                 setFormOpen(true);
               }}
             >
-              <Plus size={18} /> Nova meta
+              <Plus size={18} /> {t("goals.newGoal")}
             </Button>
           }
         />
@@ -100,7 +103,7 @@ export function GoalsPage() {
                     {goal.name}
                     {done && (
                       <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-income/15 px-2 py-0.5 text-[10px] font-semibold text-income">
-                        <Check size={11} /> concluída
+                        <Check size={11} /> {t("goals.done")}
                       </span>
                     )}
                   </span>
@@ -115,7 +118,7 @@ export function GoalsPage() {
                         setFormOpen(true);
                       }}
                       className="rounded-lg p-1 text-muted transition-colors hover:bg-surface-2 hover:text-text"
-                      aria-label="Editar meta"
+                      aria-label={t("goals.editGoalAria")}
                     >
                       <Pencil size={15} />
                     </button>
@@ -133,7 +136,9 @@ export function GoalsPage() {
                 <div className="mt-1.5 flex justify-between text-sm">
                   <span className="tabular">{formatMoney(saved)}</span>
                   <span className="tabular text-muted">
-                    de {formatMoney(goal.targetCents)}
+                    {t("goals.ofTarget", {
+                      value: formatMoney(goal.targetCents),
+                    })}
                   </span>
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-2">
@@ -144,13 +149,12 @@ export function GoalsPage() {
                       </span>
                     ) : goal.deadline ? (
                       <span>
-                        até{" "}
-                        {new Date(
-                          goal.deadline + "T00:00:00",
-                        ).toLocaleDateString("pt-BR")}
+                        {t("goals.untilDate", {
+                          date: formatDate(goal.deadline),
+                        })}
                       </span>
                     ) : (
-                      <span>só acompanha o progresso</span>
+                      <span>{t("goals.trackOnly")}</span>
                     )}
                   </div>
                   <Button
@@ -161,7 +165,7 @@ export function GoalsPage() {
                       setAporteGoal(goal);
                     }}
                   >
-                    <PiggyBank size={15} /> Guardar
+                    <PiggyBank size={15} /> {t("goals.save")}
                   </Button>
                 </div>
               </Card>
@@ -190,6 +194,7 @@ function AporteDialog({
   saved: number;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const accounts = useAccounts(true);
   const [amount, setAmount] = useState("");
   const [fromAccount, setFromAccount] = useState("");
@@ -222,17 +227,17 @@ function AporteDialog({
   async function handleSubmit() {
     const cents = parseMoney(amount);
     if (!cents || cents <= 0) {
-      setError("Informe um valor válido.");
+      setError(t("goals.errAmount"));
       return;
     }
 
     if (hasPotes) {
       if (!toPote) {
-        setError("Escolha em qual pote guardar.");
+        setError(t("goals.errPote"));
         return;
       }
       if (!fromAccount || fromAccount === toPote) {
-        setError("Escolha uma conta de origem diferente do pote.");
+        setError(t("goals.errFromDiff"));
         return;
       }
       const acc = accounts.find((a) => a.id === fromAccount);
@@ -244,7 +249,7 @@ function AporteDialog({
         amountCents: cents,
         currency: acc?.currency ?? "BRL",
         date: today(),
-        description: `Aporte: ${goal!.name}`,
+        description: t("goals.aporteDesc", { name: goal!.name }),
         tags: ["meta"],
         status: "cleared",
         goalId: goal!.id,
@@ -259,16 +264,18 @@ function AporteDialog({
     onClose();
     celebrate(
       reached ? "confetti" : "coin",
-      reached ? "Meta atingida! 🎉" : `Guardado ${formatMoney(cents)}`,
+      reached
+        ? t("goals.reached")
+        : t("goals.saved", { value: formatMoney(cents) }),
     );
   }
 
   return (
     <Dialog open={!!goal} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent title={`Guardar em "${goal.name}"`}>
+      <DialogContent title={t("goals.aporteTitle", { name: goal.name })}>
         <div className="space-y-4">
           <div>
-            <Label>Valor</Label>
+            <Label>{t("goals.amount")}</Label>
             <Input
               inputMode="decimal"
               placeholder="0,00"
@@ -282,7 +289,7 @@ function AporteDialog({
           {hasPotes ? (
             <>
               <div>
-                <Label>Tirar de qual conta</Label>
+                <Label>{t("goals.fromWhich")}</Label>
                 <AccountSelect
                   value={fromAccount}
                   onChange={setFromAccount}
@@ -292,7 +299,7 @@ function AporteDialog({
               </div>
               {poteAccounts.length > 1 ? (
                 <div>
-                  <Label>Guardar em qual pote</Label>
+                  <Label>{t("goals.toWhichPote")}</Label>
                   <AccountSelect
                     value={toPote}
                     onChange={setToPote}
@@ -302,25 +309,23 @@ function AporteDialog({
                 </div>
               ) : (
                 <p className="text-xs text-muted">
-                  Vai para <b>{poteAccounts[0]?.name ?? "o pote"}</b> (transferência,
-                  não conta como gasto).
+                  {t("goals.goesToPote", {
+                    name: poteAccounts[0]?.name ?? "—",
+                  })}
                 </p>
               )}
             </>
           ) : (
-            <p className="text-xs text-muted">
-              Esta meta só acompanha o progresso — o dinheiro fica onde está. Para
-              mover de verdade, vincule um cofrinho ao editar a meta.
-            </p>
+            <p className="text-xs text-muted">{t("goals.trackOnlyHint")}</p>
           )}
 
           {error && <p className="text-sm text-expense">{error}</p>}
 
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="outline" onClick={onClose}>
-              Cancelar
+              {t("common.cancel")}
             </Button>
-            <Button onClick={handleSubmit}>Guardar</Button>
+            <Button onClick={handleSubmit}>{t("goals.save")}</Button>
           </div>
         </div>
       </DialogContent>
@@ -339,6 +344,7 @@ function GoalForm({
   onOpenChange: (o: boolean) => void;
   editing?: Goal;
 }) {
+  const { t } = useTranslation();
   const accounts = useAccounts(true);
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
@@ -383,7 +389,7 @@ function GoalForm({
   async function handleSubmit() {
     const targetCents = parseMoney(target);
     if (!name.trim() || !targetCents || targetCents <= 0) {
-      setError("Informe nome e valor-alvo.");
+      setError(t("goals.errNameTarget"));
       return;
     }
     const data = {
@@ -404,20 +410,22 @@ function GoalForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={editing ? "Editar meta" : "Nova meta"}>
+      <DialogContent
+        title={editing ? t("goals.formEditTitle") : t("goals.formNewTitle")}
+      >
         <div className="space-y-4">
           <div>
-            <Label>Nome</Label>
+            <Label>{t("goals.name")}</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ex.: Reserva de emergência"
+              placeholder={t("goals.namePlaceholder")}
               autoFocus
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Valor-alvo</Label>
+              <Label>{t("goals.target")}</Label>
               <Input
                 inputMode="decimal"
                 placeholder="0,00"
@@ -427,7 +435,7 @@ function GoalForm({
               />
             </div>
             <div>
-              <Label>Prazo (opcional)</Label>
+              <Label>{t("goals.deadline")}</Label>
               <Input
                 type="date"
                 value={deadline}
@@ -438,7 +446,7 @@ function GoalForm({
 
           {/* Potes da meta (onde o dinheiro fica) */}
           <div>
-            <Label>Potes da meta (opcional)</Label>
+            <Label>{t("goals.potes")}</Label>
             <div className="flex flex-wrap gap-1.5">
               {accounts.map((a) => {
                 const on = potes.includes(a.id);
@@ -468,29 +476,15 @@ function GoalForm({
                 onClick={() => setAcctFormOpen(true)}
                 className="rounded-full border border-dashed border-border px-3 py-1.5 text-xs font-medium text-primary hover:bg-surface-2"
               >
-                ＋ Nova conta
+                {t("goals.newAccount")}
               </button>
             </div>
             <p className="mt-1.5 text-xs text-muted">
-              {hasPotes ? (
-                <>
-                  O guardado vira a <b>soma dos saldos</b> destes potes
-                  (atualiza sozinho). Pode juntar vários — ex.: cofrinho +
-                  limite garantido.
-                </>
-              ) : (
-                <>
-                  Sem pote: a meta <b>só acompanha</b> o progresso (o dinheiro
-                  fica onde está). Vincule um cofrinho só se quiser mover o
-                  dinheiro pra fora da conta.
-                </>
-              )}
+              {hasPotes ? t("goals.potesHintOn") : t("goals.potesHintOff")}
             </p>
             {trapPote && (
               <p className="mt-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-300">
-                ⚠️ <b>{trapPote.name}</b> é uma conta do dia a dia. Usá-la como
-                pote faz o guardado seguir o saldo dela toda — geralmente você
-                quer um <b>cofrinho/poupança separado</b>.
+                ⚠️ {t("goals.trapWarn", { name: trapPote.name })}
               </p>
             )}
           </div>
@@ -498,7 +492,7 @@ function GoalForm({
           {/* Já guardado: só no modo "sem pote" (número manual) */}
           {!hasPotes && (
             <div>
-              <Label>Já guardado</Label>
+              <Label>{t("goals.alreadySaved")}</Label>
               <Input
                 inputMode="decimal"
                 placeholder="0,00"
@@ -510,7 +504,7 @@ function GoalForm({
           )}
 
           <div>
-            <Label>Cor</Label>
+            <Label>{t("goals.color")}</Label>
             <div className="flex gap-2">
               {COLORS.map((c) => (
                 <button
@@ -534,7 +528,7 @@ function GoalForm({
                 variant="ghost"
                 size="icon"
                 onClick={async () => {
-                  if (!confirmDelete("esta meta")) return;
+                  if (!confirmDelete(t("goals.confirmDelete"))) return;
                   await softDelete("goals", editing.id);
                   onOpenChange(false);
                 }}
@@ -546,9 +540,9 @@ function GoalForm({
             )}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancelar
+                {t("common.cancel")}
               </Button>
-              <Button onClick={handleSubmit}>Salvar</Button>
+              <Button onClick={handleSubmit}>{t("common.save")}</Button>
             </div>
           </div>
         </div>

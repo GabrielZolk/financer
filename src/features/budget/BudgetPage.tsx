@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Plus, Trash2, PiggyBank } from "lucide-react";
 import { db } from "@/db/schema";
 import { create, update, softDelete } from "@/db/repo";
 import { useCategories, useAllTransactions } from "@/db/hooks";
 import { budgetStatus, resolveBudgets } from "@/lib/calc";
 import { formatMoney, parseMoney } from "@/lib/money";
+import { monthLong } from "@/lib/format";
 import { currentMonth, confirmDelete } from "@/lib/utils";
 import {
   Button,
@@ -28,6 +30,7 @@ function shiftMonth(month: string, delta: number): string {
 }
 
 export function BudgetPage() {
+  const { t } = useTranslation();
   const [month, setMonth] = useState(currentMonth());
   const categories = useCategories("expense");
   const transactions = useAllTransactions();
@@ -59,15 +62,12 @@ export function BudgetPage() {
     (s, b) => s + budgetStatus(b, transactions).spentCents,
     0,
   );
-  const monthLabel = new Date(month + "-01T00:00:00").toLocaleDateString(
-    "pt-BR",
-    { month: "long", year: "numeric" },
-  );
+  const monthLabel = monthLong(month);
 
   return (
     <div>
       <PageHeader
-        title="Orçamento"
+        title={t("budget.title")}
         action={
           <Button
             onClick={() => {
@@ -75,7 +75,7 @@ export function BudgetPage() {
               setFormOpen(true);
             }}
           >
-            <Plus size={18} /> Novo
+            <Plus size={18} /> {t("common.new")}
           </Button>
         }
       />
@@ -100,7 +100,7 @@ export function BudgetPage() {
       {totalLimit > 0 && (
         <Card className="mb-4">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted">Gasto no mês</span>
+            <span className="text-muted">{t("budget.spentThisMonth")}</span>
             <span className="tabular font-semibold">
               {formatMoney(totalSpent)} / {formatMoney(totalLimit)}
             </span>
@@ -121,8 +121,8 @@ export function BudgetPage() {
       {budgets.length === 0 ? (
         <EmptyState
           icon={<PiggyBank size={28} />}
-          title="Nenhum orçamento"
-          description="Escolha categorias e defina um limite mensal pra cada uma."
+          title={t("budget.emptyTitle")}
+          description={t("budget.emptyDesc")}
           action={
             <Button
               onClick={() => {
@@ -130,7 +130,7 @@ export function BudgetPage() {
                 setFormOpen(true);
               }}
             >
-              <Plus size={18} /> Adicionar orçamento
+              <Plus size={18} /> {t("budget.addBudget")}
             </Button>
           }
         />
@@ -155,10 +155,10 @@ export function BudgetPage() {
                     size={34}
                   />
                   <span className="flex flex-1 items-center gap-1.5 text-sm font-medium">
-                    {cat?.name ?? "Categoria"}
+                    {cat?.name ?? t("budget.categoryFallback")}
                     {b.recurring === 1 && (
                       <span className="rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold text-muted">
-                        todo mês
+                        {t("budget.everyMonth")}
                       </span>
                     )}
                   </span>
@@ -179,11 +179,18 @@ export function BudgetPage() {
                 </div>
                 <div className="mt-1 flex justify-between text-xs">
                   <span className="text-muted">
-                    {formatMoney(status.spentCents)} gasto
+                    {t("budget.spent", {
+                      value: formatMoney(status.spentCents),
+                    })}
                   </span>
                   <span className={status.overBudget ? "text-expense" : "text-muted"}>
-                    {status.overBudget ? "estourou " : "resta "}
-                    {formatMoney(Math.abs(status.remainingCents))}
+                    {status.overBudget
+                      ? t("budget.over", {
+                          value: formatMoney(Math.abs(status.remainingCents)),
+                        })
+                      : t("budget.remaining", {
+                          value: formatMoney(Math.abs(status.remainingCents)),
+                        })}
                   </span>
                 </div>
               </Card>
@@ -222,6 +229,7 @@ function BudgetForm({
   budgetedIds: Set<string>;
   categoryMap: Map<string, Category>;
 }) {
+  const { t } = useTranslation();
   const [categoryId, setCategoryId] = useState("");
   const [limit, setLimit] = useState("");
   const [recurring, setRecurring] = useState(true);
@@ -257,11 +265,11 @@ function BudgetForm({
   async function handleSubmit() {
     const cents = parseMoney(limit);
     if (!categoryId) {
-      setError("Escolha uma categoria.");
+      setError(t("budget.errCategory"));
       return;
     }
     if (!cents || cents <= 0) {
-      setError("Informe um limite válido.");
+      setError(t("budget.errLimit"));
       return;
     }
     const rec = (recurring ? 1 : 0) as 0 | 1;
@@ -283,7 +291,9 @@ function BudgetForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={editing ? "Editar orçamento" : "Novo orçamento"}>
+      <DialogContent
+        title={editing ? t("budget.editTitle") : t("budget.newTitle")}
+      >
         <div className="space-y-4">
           {editing ? (
             <div className="flex items-center gap-3">
@@ -293,16 +303,17 @@ function BudgetForm({
                 size={40}
               />
               <span className="font-medium">
-                {categoryMap.get(editing.categoryId)?.name ?? "Categoria"}
+                {categoryMap.get(editing.categoryId)?.name ??
+                  t("budget.categoryFallback")}
               </span>
             </div>
           ) : (
             <div>
-              <Label>Categoria</Label>
+              <Label>{t("budget.category")}</Label>
               <Select value={categoryId} onChange={(e) => onPickCategory(e.target.value)}>
                 {available.length === 0 && (
                   <option value="" disabled>
-                    Todas já têm orçamento — crie uma nova
+                    {t("budget.allBudgeted")}
                   </option>
                 )}
                 {available.map((c) => (
@@ -310,13 +321,13 @@ function BudgetForm({
                     {c.name}
                   </option>
                 ))}
-                <option value="__new__">+ Nova categoria…</option>
+                <option value="__new__">{t("budget.newCategory")}</option>
               </Select>
             </div>
           )}
 
           <div>
-            <Label>Limite mensal</Label>
+            <Label>{t("budget.limitMonthly")}</Label>
             <Input
               inputMode="decimal"
               placeholder="0,00"
@@ -334,7 +345,7 @@ function BudgetForm({
               onChange={(e) => setRecurring(e.target.checked)}
               className="h-4 w-4 rounded border-border"
             />
-            Repetir todo mês (vale pros próximos meses automaticamente)
+            {t("budget.repeatMonthly")}
           </label>
 
           {error && <p className="text-sm text-expense">{error}</p>}
@@ -345,7 +356,7 @@ function BudgetForm({
                 variant="ghost"
                 size="icon"
                 onClick={async () => {
-                  if (!confirmDelete("este orçamento")) return;
+                  if (!confirmDelete(t("budget.confirmDelete"))) return;
                   await softDelete("budgets", editing.id);
                   onOpenChange(false);
                 }}
@@ -357,10 +368,10 @@ function BudgetForm({
             )}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancelar
+                {t("common.cancel")}
               </Button>
               <Button onClick={handleSubmit} disabled={!editing && !categoryId}>
-                Salvar
+                {t("common.save")}
               </Button>
             </div>
           </div>

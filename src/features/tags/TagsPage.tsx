@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, ArrowUpRight, Lightbulb, Merge, Pencil, Trash2, X } from "lucide-react";
 import { db } from "@/db/schema";
@@ -13,6 +14,7 @@ import {
 } from "@/lib/calc/tags";
 import { mergeTags, renameTag, deleteTag } from "@/lib/tags-ops";
 import { formatMoney } from "@/lib/money";
+import { getActiveLocale } from "@/lib/i18n/config";
 import { Button, Card, EmptyState, Input } from "@/components/ui/primitives";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/PageHeader";
@@ -29,13 +31,14 @@ function tagColor(tag: string): string {
   return PALETTE[h % PALETTE.length];
 }
 
-const SORTS: { value: TagSort; label: string }[] = [
-  { value: "uses", label: "Mais usadas" },
-  { value: "total", label: "Maior total" },
-  { value: "alpha", label: "A–Z" },
+const SORTS: { value: TagSort; labelKey: string }[] = [
+  { value: "uses", labelKey: "tags.sortUses" },
+  { value: "total", labelKey: "tags.sortTotal" },
+  { value: "alpha", labelKey: "tags.sortAlpha" },
 ];
 
 export function TagsPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const txs = useLiveQuery(
     async () => (await db.transactions.toArray()) as Transaction[],
@@ -94,8 +97,7 @@ export function TagsPage() {
   }
 
   async function doDelete(tag: string) {
-    if (!confirm(`Remover a tag "#${tag}" de todos os lançamentos? Os lançamentos não são apagados.`))
-      return;
+    if (!confirm(t("tags.confirmDeleteOne", { tag }))) return;
     await deleteTag(tag);
     setFocused((f) => (f === tag ? null : f));
     setSelected((prev) => {
@@ -107,8 +109,8 @@ export function TagsPage() {
   async function doDeleteSelected() {
     const list = [...selected];
     if (!list.length) return;
-    if (!confirm(`Remover ${list.length} tags de todos os lançamentos?`)) return;
-    for (const t of list) await deleteTag(t);
+    if (!confirm(t("tags.confirmDeleteMany", { count: list.length }))) return;
+    for (const tg of list) await deleteTag(tg);
     clearSelection();
     setFocused((f) => (f && list.includes(f) ? null : f));
   }
@@ -117,11 +119,11 @@ export function TagsPage() {
     return (
       <div>
         <BackLink />
-        <PageHeader title="Tags" subtitle="Organize seus lançamentos por marcadores" />
+        <PageHeader title={t("tags.title")} subtitle={t("tags.subtitleEmpty")} />
         <EmptyState
           icon={<span className="text-2xl">🏷️</span>}
-          title="Nenhuma tag ainda"
-          description="Adicione tags ao criar um lançamento (campo “Tags”). Elas aparecem aqui para você renomear, mesclar e ver gastos."
+          title={t("tags.emptyTitle")}
+          description={t("tags.emptyDesc")}
         />
       </div>
     );
@@ -131,8 +133,8 @@ export function TagsPage() {
     <div>
       <BackLink />
       <PageHeader
-        title="Tags"
-        subtitle={`${stats.length} ${stats.length === 1 ? "tag" : "tags"} · uso e gasto por marcador`}
+        title={t("tags.title")}
+        subtitle={t("tags.subtitle", { count: stats.length })}
       />
 
       <Card className="overflow-hidden p-0">
@@ -150,14 +152,14 @@ export function TagsPage() {
                     : "text-muted hover:text-text")
                 }
               >
-                {s.label}
+                {t(s.labelKey)}
               </button>
             ))}
           </div>
           <Input
             type="search"
             autoComplete="off"
-            placeholder="🔍 buscar tag…"
+            placeholder={t("tags.searchPlaceholder")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="ml-auto h-9 w-auto min-w-[160px] flex-1 sm:max-w-[220px] sm:flex-none"
@@ -172,17 +174,17 @@ export function TagsPage() {
           >
             <Lightbulb size={16} className="shrink-0 text-amber-500" />
             <span className="min-w-0">
-              Possíveis duplicadas: <b>#{dupe[0]}</b> e <b>#{dupe[1]}</b> — mesclar numa só?
+              {t("tags.dupes", { a: dupe[0], b: dupe[1] })}
             </span>
             <Button
               size="sm"
               className="ml-auto h-7"
               onClick={() => setMerging([dupe[0], dupe[1]])}
             >
-              Mesclar
+              {t("tags.merge")}
             </Button>
             <button
-              title="dispensar"
+              title={t("tags.dismiss")}
               onClick={() => setDismissed((p) => new Set(p).add(`${dupe[0]}|${dupe[1]}`))}
               className="rounded-md p-1 text-muted hover:bg-surface-2"
             >
@@ -197,19 +199,21 @@ export function TagsPage() {
             className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5 text-sm"
             style={{ background: "color-mix(in srgb, var(--primary) 9%, var(--surface))" }}
           >
-            <b className="text-primary">{selected.size} selecionadas</b>
+            <b className="text-primary">
+              {t("tags.selectedCount", { count: selected.size })}
+            </b>
             <Button
               size="sm"
               className="ml-auto h-7"
               onClick={() => setMerging([...selected])}
             >
-              <Merge size={14} /> Mesclar em uma…
+              <Merge size={14} /> {t("tags.mergeInto")}
             </Button>
             <Button size="sm" variant="outline" className="h-7 text-expense" onClick={doDeleteSelected}>
-              <Trash2 size={14} /> Excluir
+              <Trash2 size={14} /> {t("common.delete")}
             </Button>
             <Button size="sm" variant="ghost" className="h-7" onClick={clearSelection}>
-              Limpar
+              {t("common.clear")}
             </Button>
           </div>
         )}
@@ -218,7 +222,7 @@ export function TagsPage() {
           {/* nuvem */}
           <div className="flex flex-wrap content-start gap-2.5 border-border p-4 sm:border-r">
             {visible.length === 0 ? (
-              <p className="py-4 text-sm text-muted">Nenhuma tag encontrada.</p>
+              <p className="py-4 text-sm text-muted">{t("tags.noneFound")}</p>
             ) : (
               visible.map((s) => {
                 const isSel = selected.has(s.tag);
@@ -272,9 +276,9 @@ export function TagsPage() {
             ) : (
               <div className="flex h-full flex-col items-center justify-center py-8 text-center text-sm text-muted">
                 <span className="mb-2 text-2xl">🏷️</span>
-                Toque numa tag para ver detalhes.
+                {t("tags.tapToDetail")}
                 <span className="mt-3 text-[11px]">
-                  ⌘/Ctrl + clique seleciona várias para mesclar em lote.
+                  {t("tags.multiSelectHint")}
                 </span>
               </div>
             )}
@@ -305,12 +309,13 @@ export function TagsPage() {
 }
 
 function BackLink() {
+  const { t } = useTranslation();
   return (
     <Link
       to="/settings"
       className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-text"
     >
-      <ArrowLeft size={16} /> Ajustes
+      <ArrowLeft size={16} /> {t("cat.backSettings")}
     </Link>
   );
 }
@@ -328,6 +333,7 @@ function TagDetail({
   onDelete: () => void;
   onSee: () => void;
 }) {
+  const { t } = useTranslation();
   const max = Math.max(...stat.monthly, 1);
   return (
     <div>
@@ -336,18 +342,20 @@ function TagDetail({
         <h2 className="text-xl font-extrabold">#{stat.tag}</h2>
       </div>
       <p className="mt-0.5 text-xs text-muted">
-        {stat.firstUse ? `Primeiro uso em ${monthYear(stat.firstUse)}` : "—"}
+        {stat.firstUse
+          ? t("tags.firstUse", { month: monthYear(stat.firstUse) })
+          : "—"}
         {stat.accountIds.length > 0 &&
-          ` · em ${stat.accountIds.length} ${stat.accountIds.length === 1 ? "conta" : "contas"}`}
+          t("tags.inAccounts", { count: stat.accountIds.length })}
       </p>
 
       <div className="my-4 grid grid-cols-2 gap-2.5">
         <div className="rounded-xl bg-surface-2 px-3 py-2.5">
-          <div className="text-[11.5px] text-muted">Lançamentos</div>
+          <div className="text-[11.5px] text-muted">{t("tags.entries")}</div>
           <div className="mt-0.5 text-lg font-extrabold tabular">{stat.count}</div>
         </div>
         <div className="rounded-xl bg-surface-2 px-3 py-2.5">
-          <div className="text-[11.5px] text-muted">Total gasto</div>
+          <div className="text-[11.5px] text-muted">{t("tags.totalSpent")}</div>
           <div className="mt-0.5 text-lg font-extrabold tabular text-expense">
             {formatMoney(stat.totalCents)}
           </div>
@@ -355,7 +363,7 @@ function TagDetail({
       </div>
 
       <div className="mb-4">
-        <div className="mb-1.5 text-[11.5px] text-muted">Gasto nos últimos 6 meses</div>
+        <div className="mb-1.5 text-[11.5px] text-muted">{t("tags.last6m")}</div>
         <div className="flex h-12 items-end gap-1">
           {stat.monthly.map((v, i) => (
             <div
@@ -375,13 +383,13 @@ function TagDetail({
 
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" onClick={onRename}>
-          <Pencil size={14} /> Renomear
+          <Pencil size={14} /> {t("tags.rename")}
         </Button>
         <Button variant="outline" size="sm" onClick={onMerge}>
-          <Merge size={14} /> Mesclar com…
+          <Merge size={14} /> {t("tags.mergeWith")}
         </Button>
         <Button variant="outline" size="sm" className="text-expense" onClick={onDelete}>
-          <Trash2 size={14} /> Excluir
+          <Trash2 size={14} /> {t("common.delete")}
         </Button>
       </div>
 
@@ -389,7 +397,8 @@ function TagDetail({
         onClick={onSee}
         className="mt-3.5 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-primary hover:underline"
       >
-        <ArrowUpRight size={14} /> Ver {stat.count} {stat.count === 1 ? "lançamento" : "lançamentos"} com #{stat.tag}
+        <ArrowUpRight size={14} />{" "}
+        {t("tags.seeN", { count: stat.count, tag: stat.tag })}
       </button>
     </div>
   );
@@ -404,10 +413,11 @@ function RenameDialog({
   onClose: () => void;
   onDone: (to: string) => void;
 }) {
+  const { t } = useTranslation();
   const open = tag !== null;
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent title="Renomear tag" className="max-w-sm">
+      <DialogContent title={t("tags.renameTitle")} className="max-w-sm">
         <RenameBody key={tag ?? ""} tag={tag} onClose={onClose} onDone={onDone} />
       </DialogContent>
     </Dialog>
@@ -423,6 +433,7 @@ function RenameBody({
   onClose: () => void;
   onDone: (to: string) => void;
 }) {
+  const { t } = useTranslation();
   const [value, setValue] = useState(tag ?? "");
   const [busy, setBusy] = useState(false);
   async function save() {
@@ -439,21 +450,21 @@ function RenameBody({
   return (
     <div>
       <p className="mb-2 text-sm text-muted">
-        Renomeia <b>#{tag}</b> em todos os lançamentos onde aparece.
+        {t("tags.renameBody", { tag })}
       </p>
       <Input
         value={value}
         autoFocus
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && save()}
-        placeholder="novo nome"
+        placeholder={t("tags.renamePlaceholder")}
       />
       <div className="mt-4 flex justify-end gap-2">
         <Button variant="ghost" onClick={onClose}>
-          Cancelar
+          {t("common.cancel")}
         </Button>
         <Button onClick={save} disabled={busy}>
-          Salvar
+          {t("common.save")}
         </Button>
       </div>
     </div>
@@ -471,10 +482,11 @@ function MergeDialog({
   onClose: () => void;
   onDone: (target: string) => void;
 }) {
+  const { t } = useTranslation();
   const open = sources !== null;
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent title="Mesclar tags" className="max-w-sm">
+      <DialogContent title={t("tags.mergeTitle")} className="max-w-sm">
         <MergeBody
           key={(sources ?? []).join("|")}
           sources={sources ?? []}
@@ -498,6 +510,7 @@ function MergeBody({
   onClose: () => void;
   onDone: (target: string) => void;
 }) {
+  const { t } = useTranslation();
   // sugestão de destino: a 1ª das fontes (mais usada, quando veio da seleção)
   const [target, setTarget] = useState(sources[0] ?? "");
   const [busy, setBusy] = useState(false);
@@ -519,19 +532,11 @@ function MergeBody({
   return (
     <div>
       <p className="mb-2 text-sm text-muted">
-        {sources.length > 1 ? (
-          <>
-            Mesclar{" "}
-            {sources.map((s) => (
-              <b key={s}>#{s} </b>
-            ))}
-            em uma só tag:
-          </>
-        ) : (
-          <>
-            Mesclar <b>#{sources[0]}</b> em outra tag (some e vira a escolhida):
-          </>
-        )}
+        {sources.length > 1
+          ? t("tags.mergeBodyMulti", {
+              tags: sources.map((s) => `#${s}`).join(" "),
+            })
+          : t("tags.mergeBodyOne", { tag: sources[0] })}
       </p>
       <Input
         list="merge-targets"
@@ -539,22 +544,20 @@ function MergeBody({
         autoFocus
         onChange={(e) => setTarget(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && save()}
-        placeholder="tag de destino"
+        placeholder={t("tags.mergeTargetPlaceholder")}
       />
       <datalist id="merge-targets">
         {sources.length > 1
-          ? sources.map((t) => <option key={t} value={t} />)
-          : others.map((t) => <option key={t} value={t} />)}
+          ? sources.map((s) => <option key={s} value={s} />)
+          : others.map((s) => <option key={s} value={s} />)}
       </datalist>
-      <p className="mt-2 text-xs text-muted">
-        Pode escolher uma existente ou digitar um nome novo.
-      </p>
+      <p className="mt-2 text-xs text-muted">{t("tags.mergeHint")}</p>
       <div className="mt-4 flex justify-end gap-2">
         <Button variant="ghost" onClick={onClose}>
-          Cancelar
+          {t("common.cancel")}
         </Button>
         <Button onClick={save} disabled={busy || !target.trim()}>
-          Mesclar
+          {t("tags.merge")}
         </Button>
       </div>
     </div>
@@ -562,6 +565,8 @@ function MergeBody({
 }
 
 function monthYear(date: string): string {
-  const d = new Date(date + "T00:00:00");
-  return d.toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
+  return new Date(date + "T00:00:00").toLocaleDateString(getActiveLocale(), {
+    month: "short",
+    year: "numeric",
+  });
 }

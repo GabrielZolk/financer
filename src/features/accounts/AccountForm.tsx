@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button, Input, Label, Select } from "@/components/ui/primitives";
 import { parseMoney, formatMoney } from "@/lib/money";
@@ -7,12 +8,12 @@ import { create, update, softDelete } from "@/db/repo";
 import type { Account, AccountType, Transaction } from "@/db/types";
 import { Trash2, Scale } from "lucide-react";
 
-const TYPES: { value: AccountType; label: string }[] = [
-  { value: "checking", label: "Conta corrente" },
-  { value: "savings", label: "Poupança" },
-  { value: "cash", label: "Dinheiro" },
-  { value: "credit_card", label: "Cartão de crédito" },
-  { value: "investment", label: "Investimento" },
+const TYPES: { value: AccountType; labelKey: string }[] = [
+  { value: "checking", labelKey: "acc.typeChecking" },
+  { value: "savings", labelKey: "acc.typeSavings" },
+  { value: "cash", labelKey: "acc.typeCash" },
+  { value: "credit_card", labelKey: "acc.typeCard" },
+  { value: "investment", labelKey: "acc.typeInvestment" },
 ];
 
 const CURRENCIES = ["BRL", "USD", "EUR", "GBP", "ARS", "BTC"];
@@ -44,6 +45,7 @@ export function AccountForm({
   /** chamado com a conta recém-criada (para seleção inline) */
   onCreated?: (acc: Account) => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [type, setType] = useState<AccountType>(defaultType);
   const [currency, setCurrency] = useState("BRL");
@@ -94,7 +96,7 @@ export function AccountForm({
     if (!editing || currentBalance === undefined) return;
     const real = parseMoney(adjustReal);
     if (real === null) {
-      setError("Informe o saldo real.");
+      setError(t("acc.errRealBalance"));
       return;
     }
     const diff = real - currentBalance;
@@ -107,7 +109,7 @@ export function AccountForm({
         amountCents: Math.abs(diff),
         currency: editing.currency,
         date: new Date().toISOString().slice(0, 10),
-        description: "Ajuste de saldo",
+        description: t("acc.adjustEntry"),
         tags: ["ajuste"],
         status: "cleared",
       });
@@ -117,7 +119,7 @@ export function AccountForm({
 
   async function handleSubmit() {
     if (!name.trim()) {
-      setError("Dê um nome à conta.");
+      setError(t("acc.errName"));
       return;
     }
     const isCard = type === "credit_card";
@@ -147,7 +149,7 @@ export function AccountForm({
   }
 
   async function handleDelete() {
-    if (editing && confirmDelete("esta conta (os lançamentos ligados a ela continuam)")) {
+    if (editing && confirmDelete(t("acc.confirmDelete"))) {
       await softDelete("accounts", editing.id);
       onOpenChange(false);
     }
@@ -155,33 +157,33 @@ export function AccountForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={editing ? "Editar conta" : "Nova conta"}>
+      <DialogContent title={editing ? t("acc.editTitle") : t("acc.newTitle")}>
         <div className="space-y-4">
           <div>
-            <Label>Nome</Label>
+            <Label>{t("acc.name")}</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ex.: Nubank, Carteira…"
+              placeholder={t("acc.namePlaceholder")}
               autoFocus
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Tipo</Label>
+              <Label>{t("acc.type")}</Label>
               <Select
                 value={type}
                 onChange={(e) => setType(e.target.value as AccountType)}
               >
-                {TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
+                {TYPES.map((ty) => (
+                  <option key={ty.value} value={ty.value}>
+                    {t(ty.labelKey)}
                   </option>
                 ))}
               </Select>
             </div>
             <div>
-              <Label>Moeda</Label>
+              <Label>{t("acc.currency")}</Label>
               <Select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
@@ -197,7 +199,9 @@ export function AccountForm({
 
           <div>
             <Label>
-              {type === "credit_card" ? "Saldo inicial da fatura" : "Saldo inicial"}
+              {type === "credit_card"
+                ? t("acc.initialInvoice")
+                : t("acc.initialBalance")}
             </Label>
             <Input
               inputMode="decimal"
@@ -211,7 +215,7 @@ export function AccountForm({
           {type === "credit_card" && (
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <Label>Limite</Label>
+                <Label>{t("acc.limit")}</Label>
                 <Input
                   inputMode="decimal"
                   placeholder="0,00"
@@ -221,7 +225,7 @@ export function AccountForm({
                 />
               </div>
               <div>
-                <Label>Fecha dia</Label>
+                <Label>{t("acc.closesDay")}</Label>
                 <Input
                   type="number"
                   min={1}
@@ -231,7 +235,7 @@ export function AccountForm({
                 />
               </div>
               <div>
-                <Label>Vence dia</Label>
+                <Label>{t("acc.duesDay")}</Label>
                 <Input
                   type="number"
                   min={1}
@@ -245,11 +249,11 @@ export function AccountForm({
 
           {type === "credit_card" && (
             <div>
-              <Label>Final do cartão (opcional)</Label>
+              <Label>{t("acc.last4")}</Label>
               <Input
                 inputMode="numeric"
                 maxLength={4}
-                placeholder="ex.: 1234"
+                placeholder={t("acc.last4Placeholder")}
                 value={last4}
                 onChange={(e) => setLast4(e.target.value.replace(/\D/g, ""))}
                 className="tabular"
@@ -258,7 +262,7 @@ export function AccountForm({
           )}
 
           <div>
-            <Label>Cor</Label>
+            <Label>{t("acc.color")}</Label>
             <div className="flex flex-wrap gap-2">
               {COLORS.map((c) => (
                 <button
@@ -289,12 +293,14 @@ export function AccountForm({
                   }}
                   className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
                 >
-                  <Scale size={15} /> Ajustar saldo (atual:{" "}
-                  {formatMoney(currentBalance, currency)})
+                  <Scale size={15} />{" "}
+                  {t("acc.adjustBalance", {
+                    value: formatMoney(currentBalance, currency),
+                  })}
                 </button>
               ) : (
                 <div className="space-y-2">
-                  <Label className="mb-0">Saldo real da conta</Label>
+                  <Label className="mb-0">{t("acc.realBalance")}</Label>
                   <Input
                     inputMode="decimal"
                     placeholder="0,00"
@@ -303,20 +309,17 @@ export function AccountForm({
                     className="tabular"
                     autoFocus
                   />
-                  <p className="text-xs text-muted">
-                    Cria um lançamento de “Ajuste de saldo” pra bater com esse
-                    valor.
-                  </p>
+                  <p className="text-xs text-muted">{t("acc.adjustHint")}</p>
                   <div className="flex gap-2">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setAdjustOpen(false)}
                     >
-                      Cancelar
+                      {t("common.cancel")}
                     </Button>
                     <Button size="sm" onClick={applyAdjust}>
-                      Aplicar ajuste
+                      {t("acc.applyAdjust")}
                     </Button>
                   </div>
                 </div>
@@ -336,9 +339,9 @@ export function AccountForm({
             )}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancelar
+                {t("common.cancel")}
               </Button>
-              <Button onClick={handleSubmit}>Salvar</Button>
+              <Button onClick={handleSubmit}>{t("common.save")}</Button>
             </div>
           </div>
         </div>

@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { ArrowLeft } from "lucide-react";
 import { Card } from "@/components/ui/primitives";
 import { PageHeader } from "@/components/PageHeader";
+import { formatDate } from "@/lib/format";
 
-const UPDATED = "26 de junho de 2026";
+const UPDATED_ISO = "2026-06-26";
 const CONTACT = "gabriel.zolk@znap.com.br";
 
 function H({ children }: { children: string }) {
@@ -12,22 +14,25 @@ function H({ children }: { children: string }) {
 function P({ children }: { children: React.ReactNode }) {
   return <p className="mt-2 text-sm leading-relaxed text-muted">{children}</p>;
 }
-function LI({ children }: { children: React.ReactNode }) {
-  return <li className="text-sm leading-relaxed text-muted">{children}</li>;
-}
 
 export function LegalPage({ doc }: { doc: "privacy" | "terms" }) {
+  const { t } = useTranslation();
+  const updated = formatDate(UPDATED_ISO, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
   return (
     <div>
       <Link
         to="/settings"
         className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-text"
       >
-        <ArrowLeft size={16} /> Ajustes
+        <ArrowLeft size={16} /> {t("cat.backSettings")}
       </Link>
       <PageHeader
-        title={doc === "privacy" ? "Política de Privacidade" : "Termos de Uso"}
-        subtitle={`Atualizado em ${UPDATED}`}
+        title={doc === "privacy" ? t("legal.privacyTitle") : t("legal.termsTitle")}
+        subtitle={`${t("legal.updatedPrefix")} ${updated}`}
       />
       <Card>{doc === "privacy" ? <Privacy /> : <Terms />}</Card>
     </div>
@@ -35,157 +40,85 @@ export function LegalPage({ doc }: { doc: "privacy" | "terms" }) {
 }
 
 function Privacy() {
+  const { t } = useTranslation();
+  const data = t("legal.privacy.data", { returnObjects: true }) as string[];
+  const rights = t("legal.privacy.rights", { returnObjects: true }) as string[];
   return (
     <div>
-      <P>
-        Esta Política explica como o aplicativo <b>Financer</b> ("app") trata
-        seus dados. Ele foi feito para organizar suas finanças pessoais e segue
-        o princípio <b>local-first</b>: seus dados ficam primeiro no seu próprio
-        aparelho.
-      </P>
+      <P>{t("legal.privacy.intro")}</P>
 
-      <H>Quais dados o app trata</H>
+      <H>{t("legal.privacy.dataTitle")}</H>
       <ul className="mt-2 list-disc space-y-1 pl-5">
-        <LI>
-          <b>Dados que você cria:</b> contas, lançamentos, categorias, metas,
-          orçamentos, recorrências, tags e anexos (comprovantes).
-        </LI>
-        <LI>
-          <b>Conta de sincronização (opcional):</b> seu e-mail, usado só para
-          login e para sincronizar entre seus dispositivos.
-        </LI>
-        <LI>
-          <b>Feedback (opcional):</b> o texto que você envia, com a tela e o
-          navegador no momento, para corrigirmos problemas.
-        </LI>
-        <LI>
-          Não coletamos dados de localização, contatos, nem usamos rastreadores
-          de publicidade.
-        </LI>
+        {data.map((item, i) => (
+          <li key={i} className="text-sm leading-relaxed text-muted">
+            {item}
+          </li>
+        ))}
       </ul>
 
-      <H>Onde seus dados ficam</H>
-      <P>
-        Por padrão, tudo fica <b>no seu aparelho</b> (armazenamento local do
-        navegador). Se você ativar a sincronização, uma cópia é guardada na
-        nuvem (infraestrutura <b>Supabase</b>) ligada à sua conta, transmitida
-        sempre por conexão segura (HTTPS). Lançamentos marcados como{" "}
-        <b>privados</b> são <b>criptografados</b> com o seu PIN antes de sair do
-        aparelho — sem o PIN, ninguém os lê, nem nós.
-      </P>
+      <H>{t("legal.privacy.whereTitle")}</H>
+      <P>{t("legal.privacy.where")}</P>
 
-      <H>Compartilhamento</H>
-      <P>
-        <b>Não vendemos e não compartilhamos</b> seus dados com terceiros para
-        fins comerciais. Utilizamos apenas o Supabase como provedor de
-        infraestrutura (armazenamento/sincronização), na função de operador.
-      </P>
+      <H>{t("legal.privacy.shareTitle")}</H>
+      <P>{t("legal.privacy.share")}</P>
 
-      <H>Seus direitos (LGPD)</H>
+      <H>{t("legal.privacy.rightsTitle")}</H>
       <ul className="mt-2 list-disc space-y-1 pl-5">
-        <LI>
-          <b>Acessar e exportar:</b> em Ajustes → Backup, você exporta tudo em
-          .json ou .csv a qualquer momento.
-        </LI>
-        <LI>
-          <b>Corrigir:</b> você edita ou apaga qualquer lançamento direto no
-          app.
-        </LI>
-        <LI>
-          <b>Excluir:</b> você pode apagar seus dados e/ou solicitar a exclusão
-          da conta de sincronização pelo contato abaixo.
-        </LI>
-        <LI>
-          <b>Revogar o consentimento:</b> basta desativar a sincronização e/ou
-          parar de usar o app.
-        </LI>
+        {rights.map((item, i) => (
+          <li key={i} className="text-sm leading-relaxed text-muted">
+            {item}
+          </li>
+        ))}
       </ul>
 
-      <H>Retenção</H>
-      <P>
-        Os dados na nuvem permanecem enquanto sua conta existir. Ao excluir os
-        dados ou a conta, eles são removidos.
-      </P>
+      <H>{t("legal.privacy.retentionTitle")}</H>
+      <P>{t("legal.privacy.retention")}</P>
 
-      <H>Menores</H>
-      <P>
-        O app não é direcionado a menores de 18 anos e não coleta dados de
-        crianças intencionalmente.
-      </P>
+      <H>{t("legal.privacy.minorsTitle")}</H>
+      <P>{t("legal.privacy.minors")}</P>
 
-      <H>Alterações</H>
-      <P>
-        Podemos atualizar esta Política; mudanças relevantes serão informadas no
-        app, com nova data de atualização.
-      </P>
+      <H>{t("legal.privacy.changesTitle")}</H>
+      <P>{t("legal.privacy.changes")}</P>
 
-      <H>Contato</H>
-      <P>
-        Dúvidas ou pedidos sobre seus dados: <b>{CONTACT}</b>.
-      </P>
+      <H>{t("legal.privacy.contactTitle")}</H>
+      <P>{t("legal.privacy.contact", { email: CONTACT })}</P>
     </div>
   );
 }
 
 function Terms() {
+  const { t } = useTranslation();
+  const account = t("legal.terms.account", { returnObjects: true }) as string[];
   return (
     <div>
-      <P>
-        Ao usar o aplicativo <b>Financer</b> ("app"), você concorda com estes
-        Termos. Leia com atenção.
-      </P>
+      <P>{t("legal.terms.intro")}</P>
 
-      <H>O que o app é</H>
-      <P>
-        Uma ferramenta para <b>organização financeira pessoal</b>: registrar
-        gastos e receitas, acompanhar contas, metas, orçamentos e relatórios.
-      </P>
+      <H>{t("legal.terms.whatTitle")}</H>
+      <P>{t("legal.terms.what")}</P>
 
-      <H>O que o app NÃO é</H>
-      <P>
-        O app <b>não presta aconselhamento financeiro, contábil, tributário ou
-        de investimentos</b>. Os números e projeções são apenas organizacionais.
-        Decisões financeiras são de sua responsabilidade; consulte um
-        profissional quando necessário.
-      </P>
+      <H>{t("legal.terms.whatNotTitle")}</H>
+      <P>{t("legal.terms.whatNot")}</P>
 
-      <H>Sua conta e segurança</H>
+      <H>{t("legal.terms.accountTitle")}</H>
       <ul className="mt-2 list-disc space-y-1 pl-5">
-        <LI>
-          Você é responsável por manter seu login e seu PIN em segurança.
-        </LI>
-        <LI>
-          O PIN de privacidade criptografa os dados privados.{" "}
-          <b>Se você esquecer o PIN, esses dados não podem ser recuperados.</b>
-        </LI>
-        <LI>Faça backups regularmente (Ajustes → Backup).</LI>
+        {account.map((item, i) => (
+          <li key={i} className="text-sm leading-relaxed text-muted">
+            {item}
+          </li>
+        ))}
       </ul>
 
-      <H>Disponibilidade e garantias</H>
-      <P>
-        O app é fornecido <b>"no estado em que se encontra"</b>, sem garantia de
-        funcionamento ininterrupto ou livre de erros. Não nos responsabilizamos
-        por perdas decorrentes do uso, incluindo eventual perda de dados — por
-        isso, mantenha backups.
-      </P>
+      <H>{t("legal.terms.availTitle")}</H>
+      <P>{t("legal.terms.avail")}</P>
 
-      <H>Uso adequado</H>
-      <P>
-        Você se compromete a usar o app de forma lícita e a não tentar
-        comprometer sua segurança ou a de outros usuários.
-      </P>
+      <H>{t("legal.terms.useTitle")}</H>
+      <P>{t("legal.terms.use")}</P>
 
-      <H>Alterações</H>
-      <P>
-        Podemos atualizar estes Termos; o uso contínuo após mudanças significa
-        concordância com a nova versão.
-      </P>
+      <H>{t("legal.terms.changesTitle")}</H>
+      <P>{t("legal.terms.changes")}</P>
 
-      <H>Legislação</H>
-      <P>
-        Estes Termos são regidos pela legislação brasileira. Contato:{" "}
-        <b>{CONTACT}</b>.
-      </P>
+      <H>{t("legal.terms.lawTitle")}</H>
+      <P>{t("legal.terms.law", { email: CONTACT })}</P>
     </div>
   );
 }

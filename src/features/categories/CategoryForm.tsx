@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Trash2 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button, Input, Label, Select } from "@/components/ui/primitives";
@@ -38,6 +39,7 @@ export function CategoryForm({
   /** chamado com a categoria recém-criada (para seleção inline) */
   onCreated?: (cat: Category) => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [kind, setKind] = useState<CategoryKind>(defaultKind);
   const [parentId, setParentId] = useState("");
@@ -71,7 +73,7 @@ export function CategoryForm({
 
   async function handleSubmit() {
     if (!name.trim()) {
-      setError("Dê um nome à categoria.");
+      setError(t("cat.errName"));
       return;
     }
     const data = {
@@ -93,17 +95,17 @@ export function CategoryForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={editing ? "Editar categoria" : "Nova categoria"}>
+      <DialogContent title={editing ? t("cat.editTitle") : t("cat.newTitle")}>
         <div className="space-y-4">
           {/* preview + nome */}
           <div className="flex items-center gap-3">
             <CategoryIcon icon={icon} color={color} size={48} />
             <div className="flex-1">
-              <Label>Nome</Label>
+              <Label>{t("cat.name")}</Label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ex.: Mercado, Pets, Academia"
+                placeholder={t("cat.namePlaceholder")}
                 autoFocus
               />
             </div>
@@ -124,7 +126,7 @@ export function CategoryForm({
                     : "text-muted",
                 )}
               >
-                {k === "income" ? "Receita" : "Despesa"}
+                {k === "income" ? t("cat.kindIncome") : t("cat.kindExpense")}
               </button>
             ))}
           </div>
@@ -132,12 +134,12 @@ export function CategoryForm({
           {/* categoria pai (subcategoria) */}
           {parentOptions.length > 0 && (
             <div>
-              <Label>Categoria pai (opcional)</Label>
+              <Label>{t("cat.parentLabel")}</Label>
               <Select
                 value={parentId}
                 onChange={(e) => setParentId(e.target.value)}
               >
-                <option value="">Nenhuma (categoria principal)</option>
+                <option value="">{t("cat.parentNone")}</option>
                 {parentOptions.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -149,7 +151,7 @@ export function CategoryForm({
 
           {/* cor */}
           <div>
-            <Label>Cor</Label>
+            <Label>{t("cat.color")}</Label>
             <div className="flex flex-wrap gap-2">
               {COLORS.map((c) => (
                 <button
@@ -168,7 +170,7 @@ export function CategoryForm({
 
           {/* ícone */}
           <div>
-            <Label>Ícone</Label>
+            <Label>{t("cat.icon")}</Label>
             <div className="grid grid-cols-7 gap-2">
               {ICON_NAMES.map((n) => (
                 <button
@@ -195,7 +197,7 @@ export function CategoryForm({
                 variant="ghost"
                 size="icon"
                 onClick={async () => {
-                  if (!confirmDelete("esta categoria")) return;
+                  if (!confirmDelete(t("cat.confirmDelete"))) return;
                   await softDelete("categories", editing.id);
                   onOpenChange(false);
                 }}
@@ -207,9 +209,9 @@ export function CategoryForm({
             )}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancelar
+                {t("common.cancel")}
               </Button>
-              <Button onClick={handleSubmit}>Salvar</Button>
+              <Button onClick={handleSubmit}>{t("common.save")}</Button>
             </div>
           </div>
         </div>

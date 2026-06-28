@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   Button,
@@ -9,6 +11,7 @@ import {
 } from "@/components/ui/primitives";
 import { cn, confirmDelete } from "@/lib/utils";
 import { parseMoney, formatMoney } from "@/lib/money";
+import { formatDate } from "@/lib/format";
 import { create, update, softDelete, bulkCreate } from "@/db/repo";
 import { useAccounts, useCategories, useAllTags } from "@/db/hooks";
 import { db } from "@/db/schema";
@@ -74,18 +77,18 @@ function parseTags(s: string): string[] {
     .filter(Boolean);
 }
 
-const KINDS: { value: TransactionKind; label: string }[] = [
-  { value: "expense", label: "Despesa" },
-  { value: "income", label: "Receita" },
-  { value: "transfer", label: "Transferência" },
+const KINDS: { value: TransactionKind; labelKey: string }[] = [
+  { value: "expense", labelKey: "tx.kindExpense" },
+  { value: "income", labelKey: "tx.kindIncome" },
+  { value: "transfer", labelKey: "tx.kindTransfer" },
 ];
 
-const FREQ: { value: RecurrenceFrequency; label: string }[] = [
-  { value: "monthly", label: "Mensal" },
-  { value: "weekly", label: "Semanal" },
-  { value: "biweekly", label: "Quinzenal" },
-  { value: "daily", label: "Diária" },
-  { value: "yearly", label: "Anual" },
+const FREQ: { value: RecurrenceFrequency; labelKey: string }[] = [
+  { value: "monthly", labelKey: "tx.freqMonthly" },
+  { value: "weekly", labelKey: "tx.freqWeekly" },
+  { value: "biweekly", labelKey: "tx.freqBiweekly" },
+  { value: "daily", labelKey: "tx.freqDaily" },
+  { value: "yearly", labelKey: "tx.freqYearly" },
 ];
 
 function today(): string {
@@ -109,6 +112,7 @@ export function TransactionForm({
   /** pede ao pai pra reabrir o form duplicando este lançamento */
   onDuplicate?: (tx: Transaction) => void;
 }) {
+  const { t } = useTranslation();
   const accounts = useAccounts();
   const allTags = useAllTags();
   const privacy = usePrivacy();
@@ -303,19 +307,19 @@ export function TransactionForm({
   async function handleSubmit() {
     setError("");
     if (cents === null || cents <= 0) {
-      setError("Informe um valor válido.");
+      setError(t("tx.errAmount"));
       return;
     }
     if (!accountId) {
-      setError("Selecione uma conta.");
+      setError(t("tx.errAccount"));
       return;
     }
     if (kind === "transfer" && (!toAccountId || toAccountId === accountId)) {
-      setError("Selecione uma conta de destino diferente.");
+      setError(t("tx.errToAccount"));
       return;
     }
     if (rangeMode && endDate && endDate < date) {
-      setError("A data final precisa ser igual ou depois do início.");
+      setError(t("tx.errEndDate"));
       return;
     }
 
@@ -340,13 +344,17 @@ export function TransactionForm({
         })
         .filter((s) => s.amountCents > 0);
       if (parsed.length < 2) {
-        setError("A divisão precisa de pelo menos 2 itens com valor.");
+        setError(t("tx.errSplitMin"));
         return;
       }
       if (splitSum !== cents) {
         const diff = (cents - splitSum) / 100;
         setError(
-          `A soma das partes (${formatMoney(splitSum)}) precisa bater com o total. Faltam ${formatMoney(Math.abs(cents - splitSum))}${diff < 0 ? " a menos" : ""}.`,
+          t("tx.errSplitSum", {
+            sum: formatMoney(splitSum),
+            diff: formatMoney(Math.abs(cents - splitSum)),
+            less: diff < 0 ? t("tx.errSplitLess") : "",
+          }),
         );
         return;
       }
@@ -364,7 +372,7 @@ export function TransactionForm({
       currency: account?.currency ?? "BRL",
       date,
       endDate: rangeMode && endDate ? endDate : null,
-      description: description.trim() || defaultDescription(kind),
+      description: description.trim() || defaultDescription(kind, t),
       notes: notes.trim() || undefined,
       tags: parseTags(tagsInput),
       status: pending ? ("pending" as const) : ("cleared" as const),
@@ -382,9 +390,7 @@ export function TransactionForm({
     let sensitive: Record<string, unknown> | null = null;
     if (isPrivate) {
       if (!privacy.unlocked) {
-        setError(
-          "Destrave a privacidade (cadeado no topo) para salvar um lançamento privado.",
-        );
+        setError(t("tx.errPrivateLocked"));
         return;
       }
       sensitive = {
@@ -483,7 +489,7 @@ export function TransactionForm({
   }
 
   async function handleDelete() {
-    if (editing && confirmDelete("este lançamento")) {
+    if (editing && confirmDelete(t("tx.confirmThis"))) {
       await softDelete("transactions", editing.id);
       onOpenChange(false);
     }
@@ -495,11 +501,11 @@ export function TransactionForm({
     if (!editing) return;
     const v = parseMoney(estornoValue);
     if (!v || v <= 0) {
-      setError("Informe o valor do estorno.");
+      setError(t("tx.errRefundValue"));
       return;
     }
     if (v > editing.amountCents) {
-      setError("O estorno não pode ser maior que a compra.");
+      setError(t("tx.errRefundTooBig"));
       return;
     }
     const acc = accounts.find((a) => a.id === editing.accountId);
@@ -511,17 +517,21 @@ export function TransactionForm({
       amountCents: v,
       currency: acc?.currency ?? editing.currency,
       date: new Date().toISOString().slice(0, 10),
-      description: `Estorno: ${editing.description}`,
+      description: t("tx.refundDesc", { desc: editing.description }),
       tags: ["estorno"],
       status: "cleared",
     });
     onOpenChange(false);
-    celebrate("coin", `Estorno de ${formatMoney(v)}`);
+    celebrate("coin", t("tx.refundCelebrate", { value: formatMoney(v) }));
   }
 
   async function handleDeleteGroup() {
     if (!editing?.installmentId) return;
-    if (!confirmDelete(`todas as ${editing.installmentTotal ?? ""} parcelas`.trim()))
+    if (
+      !confirmDelete(
+        t("tx.confirmInstallments", { count: editing.installmentTotal ?? 0 }),
+      )
+    )
       return;
     const group = await db.transactions
       .where("installmentId")
@@ -533,7 +543,7 @@ export function TransactionForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={editing ? "Editar lançamento" : "Novo lançamento"}>
+      <DialogContent title={editing ? t("tx.editTitle") : t("tx.newEntry")}>
         <div className="space-y-4">
           {/* Tipo */}
           <div className="grid grid-cols-3 gap-1 rounded-xl bg-surface-2 p-1">
@@ -550,7 +560,7 @@ export function TransactionForm({
                   kind === k.value && k.value === "expense" && "text-expense",
                 )}
               >
-                {k.label}
+                {t(k.labelKey)}
               </button>
             ))}
           </div>
@@ -559,15 +569,17 @@ export function TransactionForm({
           {editing?.installmentId && (
             <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-surface-2/40 p-3 text-sm">
               <span>
-                Parcela <b>{editing.installmentNo}/{editing.installmentTotal}</b>{" "}
-                deste parcelamento.
+                {t("tx.installmentInfo", {
+                  no: editing.installmentNo,
+                  total: editing.installmentTotal,
+                })}
               </span>
               <button
                 type="button"
                 onClick={handleDeleteGroup}
                 className="shrink-0 text-xs font-medium text-expense hover:underline"
               >
-                Excluir todas
+                {t("tx.deleteAll")}
               </button>
             </div>
           )}
@@ -586,11 +598,11 @@ export function TransactionForm({
                   }}
                   className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
                 >
-                  ↩ Registrar estorno / devolução
+                  ↩ {t("tx.refundOpen")}
                 </button>
               ) : (
                 <div className="space-y-2">
-                  <Label className="mb-0">Valor estornado (parcial ou total)</Label>
+                  <Label className="mb-0">{t("tx.refundValueLabel")}</Label>
                   <Input
                     inputMode="decimal"
                     placeholder="0,00"
@@ -599,20 +611,17 @@ export function TransactionForm({
                     className="tabular"
                     autoFocus
                   />
-                  <p className="text-xs text-muted">
-                    Cria uma devolução nesta conta. No cartão, abate o valor da
-                    fatura.
-                  </p>
+                  <p className="text-xs text-muted">{t("tx.refundHint")}</p>
                   <div className="flex gap-2">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setEstornoOpen(false)}
                     >
-                      Cancelar
+                      {t("common.cancel")}
                     </Button>
                     <Button size="sm" onClick={handleEstorno}>
-                      Registrar estorno
+                      {t("tx.refundBtn")}
                     </Button>
                   </div>
                 </div>
@@ -622,7 +631,7 @@ export function TransactionForm({
 
           {/* Valor */}
           <div>
-            <Label>Valor</Label>
+            <Label>{t("tx.amount")}</Label>
             <Input
               inputMode="decimal"
               placeholder="0,00"
@@ -639,7 +648,7 @@ export function TransactionForm({
           {/* Conta(s) */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>{kind === "transfer" ? "De" : "Conta"}</Label>
+              <Label>{kind === "transfer" ? t("tx.from") : t("tx.account")}</Label>
               <AccountSelect
                 value={accountId}
                 onChange={setAccountId}
@@ -648,35 +657,35 @@ export function TransactionForm({
             </div>
             {kind === "transfer" ? (
               <div>
-                <Label>Para</Label>
+                <Label>{t("tx.to")}</Label>
                 <AccountSelect
                   value={toAccountId}
                   onChange={setToAccountId}
                   accounts={accounts}
                   exclude={accountId}
                   includeNone
-                  noneLabel="Selecione…"
+                  noneLabel={t("tx.selectPlaceholder")}
                 />
               </div>
             ) : (
               <div>
-                <Label>Categoria</Label>
+                <Label>{t("tx.category")}</Label>
                 {splitMode ? (
                   <div className="flex h-10 items-center rounded-xl border border-border bg-surface-2 px-3 text-sm text-muted">
-                    Dividido em {splits.length}
+                    {t("tx.splitInto", { count: splits.length })}
                   </div>
                 ) : (
                   <Select
                     value={categoryId}
                     onChange={(e) => onPickCategory(e.target.value, "main")}
                   >
-                    <option value="">Sem categoria</option>
+                    <option value="">{t("tx.noCategory")}</option>
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
                       </option>
                     ))}
-                    <option value="__new__">+ Nova categoria…</option>
+                    <option value="__new__">{t("tx.newCategory")}</option>
                   </Select>
                 )}
               </div>
@@ -691,18 +700,18 @@ export function TransactionForm({
                 onClick={enterSplit}
                 className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
               >
-                <SplitIcon size={15} /> Dividir em categorias
+                <SplitIcon size={15} /> {t("tx.splitButton")}
               </button>
             ) : (
               <div className="rounded-xl border border-border bg-surface-2/40 p-3">
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-sm font-medium">Divisão</span>
+                  <span className="text-sm font-medium">{t("tx.splitTitle")}</span>
                   <button
                     type="button"
                     onClick={exitSplit}
                     className="text-xs text-muted hover:text-expense"
                   >
-                    Remover divisão
+                    {t("tx.splitRemove")}
                   </button>
                 </div>
                 <div className="space-y-2.5">
@@ -713,7 +722,7 @@ export function TransactionForm({
                     >
                       <div className="flex items-center gap-2">
                         <Input
-                          placeholder="Descrição do item"
+                          placeholder={t("tx.itemDescription")}
                           value={row.description}
                           onChange={(e) =>
                             setSplit(i, "description", e.target.value)
@@ -724,7 +733,7 @@ export function TransactionForm({
                           type="button"
                           onClick={() => removeSplit(i)}
                           className="shrink-0 text-muted hover:text-expense"
-                          aria-label="Remover item"
+                          aria-label={t("tx.itemRemove")}
                         >
                           <X size={16} />
                         </button>
@@ -735,13 +744,13 @@ export function TransactionForm({
                           onChange={(e) => onPickCategory(e.target.value, i)}
                           className="h-9 min-w-0 flex-1 text-sm"
                         >
-                          <option value="">Sem categoria</option>
+                          <option value="">{t("tx.noCategory")}</option>
                           {categories.map((c) => (
                             <option key={c.id} value={c.id}>
                               {c.name}
                             </option>
                           ))}
-                          <option value="__new__">+ Nova categoria…</option>
+                          <option value="__new__">{t("tx.newCategory")}</option>
                         </Select>
                         <Input
                           inputMode="numeric"
@@ -750,7 +759,7 @@ export function TransactionForm({
                             setSplit(i, "quantity", e.target.value)
                           }
                           className="h-9 w-11 px-1 text-center text-sm tabular"
-                          aria-label="Quantidade"
+                          aria-label={t("tx.quantity")}
                         />
                         <span className="text-sm text-muted">×</span>
                         <Input
@@ -759,7 +768,7 @@ export function TransactionForm({
                           value={row.unit}
                           onChange={(e) => setSplit(i, "unit", e.target.value)}
                           className="h-9 w-[88px] text-right text-sm tabular"
-                          aria-label="Valor unitário"
+                          aria-label={t("tx.unitValue")}
                         />
                       </div>
                       <div className="flex items-center justify-between">
@@ -770,7 +779,9 @@ export function TransactionForm({
                           }
                           className="text-xs text-muted hover:text-text"
                         >
-                          {row.showDetails ? "− menos" : "+ detalhes"}
+                          {row.showDetails
+                            ? t("tx.lessDetails")
+                            : t("tx.moreDetails")}
                         </button>
                         <span className="text-xs tabular text-muted">
                           {formatMoney(rowSubtotal(row))}
@@ -779,19 +790,21 @@ export function TransactionForm({
                       {row.showDetails && (
                         <div className="space-y-2 border-t border-border pt-2">
                           <Input
-                            placeholder="Observação"
+                            placeholder={t("tx.note")}
                             value={row.note}
                             onChange={(e) => setSplit(i, "note", e.target.value)}
                             className="h-9 text-sm"
                           />
                           <Input
-                            placeholder="Tags (separadas por vírgula)"
+                            placeholder={t("tx.tagsComma")}
                             value={row.tags}
                             onChange={(e) => setSplit(i, "tags", e.target.value)}
                             className="h-9 text-sm"
                           />
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted">Data:</span>
+                            <span className="text-xs text-muted">
+                              {t("tx.dateColon")}
+                            </span>
                             <Input
                               type="date"
                               value={row.date || date}
@@ -810,7 +823,7 @@ export function TransactionForm({
                     onClick={addSplit}
                     className="text-sm font-medium text-primary hover:underline"
                   >
-                    + Adicionar item
+                    {t("tx.addItem")}
                   </button>
                   <span
                     className="text-xs tabular"
@@ -831,7 +844,9 @@ export function TransactionForm({
           {/* Data (única ou período) */}
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <Label className="mb-0">{rangeMode ? "Período" : "Data"}</Label>
+              <Label className="mb-0">
+                {rangeMode ? t("tx.period") : t("tx.date")}
+              </Label>
               <button
                 type="button"
                 onClick={() => {
@@ -840,7 +855,7 @@ export function TransactionForm({
                 }}
                 className="text-xs font-medium text-primary hover:underline"
               >
-                {rangeMode ? "− período" : "+ período"}
+                {rangeMode ? t("tx.removePeriod") : t("tx.addPeriod")}
               </button>
             </div>
             {rangeMode ? (
@@ -851,7 +866,7 @@ export function TransactionForm({
                   onChange={(e) => setDate(e.target.value)}
                   className="flex-1"
                 />
-                <span className="text-sm text-muted">até</span>
+                <span className="text-sm text-muted">{t("tx.until")}</span>
                 <Input
                   type="date"
                   value={endDate}
@@ -869,27 +884,27 @@ export function TransactionForm({
           </div>
 
           <div>
-            <Label>Descrição</Label>
+            <Label>{t("tx.description")}</Label>
             <Input
-              placeholder="Opcional"
+              placeholder={t("tx.optionalPlaceholder")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
 
           <div>
-            <Label>Observações</Label>
+            <Label>{t("tx.notes")}</Label>
             <Textarea
-              placeholder="Opcional"
+              placeholder={t("tx.optionalPlaceholder")}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
           </div>
 
           <div>
-            <Label>Tags</Label>
+            <Label>{t("tx.tags")}</Label>
             <Input
-              placeholder="Separadas por vírgula (ex.: trabalho, reembolsável)"
+              placeholder={t("tx.tagsPlaceholder")}
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
             />
@@ -925,13 +940,13 @@ export function TransactionForm({
                   onChange={(e) => setRepeat(e.target.checked)}
                   className="h-4 w-4 rounded border-border"
                 />
-                <Repeat size={15} className="text-primary" /> Repetir automaticamente
+                <Repeat size={15} className="text-primary" /> {t("tx.repeatAuto")}
               </label>
               {repeat && (
                 <div className="mt-3 space-y-2">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label>Frequência</Label>
+                      <Label>{t("tx.frequency")}</Label>
                       <Select
                         value={repeatFreq}
                         onChange={(e) =>
@@ -940,13 +955,13 @@ export function TransactionForm({
                       >
                         {FREQ.map((f) => (
                           <option key={f.value} value={f.value}>
-                            {f.label}
+                            {t(f.labelKey)}
                           </option>
                         ))}
                       </Select>
                     </div>
                     <div>
-                      <Label>Terminar em (opcional)</Label>
+                      <Label>{t("tx.endOptional")}</Label>
                       <Input
                         type="date"
                         value={repeatEnd}
@@ -955,10 +970,17 @@ export function TransactionForm({
                     </div>
                   </div>
                   <p className="text-xs text-muted">
-                    Lança hoje e repete{" "}
-                    {FREQ.find((f) => f.value === repeatFreq)?.label.toLowerCase()} a
-                    partir de {formatBR(nextOccurrence(date, repeatFreq))}. Gerencie
-                    em Ajustes ▸ Recorrências.
+                    {t("tx.repeatHint", {
+                      freq: t(
+                        FREQ.find((f) => f.value === repeatFreq)?.labelKey ??
+                          "tx.freqMonthly",
+                      ).toLowerCase(),
+                      date: formatDate(nextOccurrence(date, repeatFreq), {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "2-digit",
+                      }),
+                    })}
                   </p>
                 </div>
               )}
@@ -967,7 +989,7 @@ export function TransactionForm({
 
           {/* Anexo (comprovante) */}
           <div>
-            <Label>Comprovante</Label>
+            <Label>{t("tx.receipt")}</Label>
             {existingAttachment && !removeAttachment ? (
               <div className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm">
                 <Paperclip size={16} className="text-muted" />
@@ -1007,7 +1029,7 @@ export function TransactionForm({
                 variant="outline"
                 onClick={() => attachInputRef.current?.click()}
               >
-                <Paperclip size={16} /> Anexar foto/PDF
+                <Paperclip size={16} /> {t("tx.attach")}
               </Button>
             )}
             <input
@@ -1028,7 +1050,7 @@ export function TransactionForm({
 
           {canInstall && !splitMode && (
             <div>
-              <Label>Parcelas</Label>
+              <Label>{t("tx.installments")}</Label>
               <Select
                 value={String(installments)}
                 onChange={(e) => setInstallments(Number(e.target.value))}
@@ -1041,8 +1063,10 @@ export function TransactionForm({
               </Select>
               {installments > 1 && cents !== null && cents > 0 && (
                 <p className="mt-1 text-xs text-muted">
-                  {installments}x de{" "}
-                  {formatMoney(Math.floor(cents / installments))} (mensal)
+                  {t("tx.installmentsInfo", {
+                    count: installments,
+                    value: formatMoney(Math.floor(cents / installments)),
+                  })}
                 </p>
               )}
             </div>
@@ -1055,7 +1079,7 @@ export function TransactionForm({
               onChange={(e) => setPending(e.target.checked)}
               className="h-4 w-4 rounded border-border"
             />
-            Lançamento pendente (não conta no saldo efetivado)
+            {t("tx.pendingCheck")}
           </label>
 
           {kind === "expense" && (
@@ -1067,7 +1091,7 @@ export function TransactionForm({
                   onChange={(e) => setIsReimbursable(e.target.checked)}
                   className="h-4 w-4 rounded border-border"
                 />
-                Reembolsável (a empresa/alguém me devolve)
+                {t("tx.reimbursableCheck")}
               </label>
               {isReimbursable && (
                 <label className="mt-2 ml-6 flex items-center gap-2 text-sm text-muted">
@@ -1077,7 +1101,7 @@ export function TransactionForm({
                     onChange={(e) => setIsReimbursed(e.target.checked)}
                     className="h-4 w-4 rounded border-border"
                   />
-                  Já recebi o reembolso
+                  {t("tx.reimbursedCheck")}
                 </label>
               )}
             </div>
@@ -1092,13 +1116,11 @@ export function TransactionForm({
                   onChange={(e) => setIsPrivate(e.target.checked)}
                   className="h-4 w-4 rounded border-border"
                 />
-                <Lock size={14} /> Lançamento privado (cifrado, oculto no modo
-                discreto)
+                <Lock size={14} /> {t("tx.privateCheck")}
               </label>
               {isPrivate && !privacy.unlocked && (
                 <p className="mt-1 text-xs text-expense">
-                  Crie/destrave o PIN no cadeado 🔒 do topo para salvar um item
-                  privado.
+                  {t("tx.privateLockedHint")}
                 </p>
               )}
             </div>
@@ -1109,7 +1131,12 @@ export function TransactionForm({
           <div className="flex items-center justify-between gap-2 pt-2">
             <div className="flex gap-1">
               {editing && (
-                <Button variant="ghost" size="icon" onClick={handleDelete} title="Excluir">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleDelete}
+                  title={t("tx.deleteTitle")}
+                >
                   <Trash2 size={18} className="text-expense" />
                 </Button>
               )}
@@ -1117,7 +1144,7 @@ export function TransactionForm({
                 <Button
                   variant="ghost"
                   size="icon"
-                  title="Duplicar"
+                  title={t("tx.duplicateTitle")}
                   onClick={() => onDuplicate(editing)}
                 >
                   <Copy size={18} className="text-muted" />
@@ -1126,9 +1153,9 @@ export function TransactionForm({
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancelar
+                {t("common.cancel")}
               </Button>
-              <Button onClick={handleSubmit}>Salvar</Button>
+              <Button onClick={handleSubmit}>{t("common.save")}</Button>
             </div>
           </div>
         </div>
@@ -1145,13 +1172,8 @@ export function TransactionForm({
   );
 }
 
-function formatBR(date: string): string {
-  const [y, m, d] = date.split("-");
-  return `${d}/${m}/${y.slice(2)}`;
-}
-
-function defaultDescription(kind: TransactionKind): string {
-  if (kind === "income") return "Receita";
-  if (kind === "transfer") return "Transferência";
-  return "Despesa";
+function defaultDescription(kind: TransactionKind, t: TFunction): string {
+  if (kind === "income") return t("tx.kindIncome");
+  if (kind === "transfer") return t("tx.kindTransfer");
+  return t("tx.kindExpense");
 }

@@ -1,10 +1,12 @@
 import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Lock } from "lucide-react";
 import { Button, Input } from "@/components/ui/primitives";
 import { useAppLock, unlockApp } from "@/lib/applock";
 
 /** Envolve o app: se o bloqueio estiver ligado e travado, exige o PIN. */
 export function AppLockGate({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const { enabled, unlocked } = useAppLock();
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
@@ -20,7 +22,7 @@ export function AppLockGate({ children }: { children: ReactNode }) {
       await unlockApp(pin);
       setPin("");
     } catch {
-      setError("PIN incorreto.");
+      setError(t("common.errPinWrong"));
     } finally {
       setBusy(false);
     }
@@ -32,8 +34,8 @@ export function AppLockGate({ children }: { children: ReactNode }) {
         <Lock size={28} />
       </div>
       <div>
-        <h1 className="text-xl font-bold">Financer bloqueado</h1>
-        <p className="mt-1 text-sm text-muted">Digite o PIN para entrar</p>
+        <h1 className="text-xl font-bold">{t("lock.gateTitle")}</h1>
+        <p className="mt-1 text-sm text-muted">{t("lock.gateSubtitle")}</p>
       </div>
       <div className="w-full max-w-[260px]">
         <Input
@@ -48,7 +50,7 @@ export function AppLockGate({ children }: { children: ReactNode }) {
         />
         {error && <p className="mt-2 text-sm text-expense">{error}</p>}
         <Button className="mt-3 w-full" onClick={submit} disabled={busy}>
-          {busy ? "…" : "Desbloquear"}
+          {busy ? "…" : t("lock.unlock")}
         </Button>
       </div>
     </div>

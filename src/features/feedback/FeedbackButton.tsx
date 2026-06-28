@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { MessageSquarePlus } from "lucide-react";
 import { Button, Textarea } from "@/components/ui/primitives";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -23,6 +24,7 @@ function daysSinceLast(): number {
 }
 
 export function FeedbackButton() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -69,7 +71,7 @@ export function FeedbackButton() {
     if (savedCloud) {
       setText("");
       setOpen(false);
-      celebrate("check", "Feedback enviado! Obrigado 🙏");
+      celebrate("check", t("fb.sent"));
     } else {
       const subject = encodeURIComponent("Feedback — Financer");
       const body = encodeURIComponent(msg);
@@ -82,49 +84,45 @@ export function FeedbackButton() {
     <>
       <button
         onClick={() => setOpen(true)}
-        title="Enviar feedback"
-        aria-label="Enviar feedback"
+        title={t("fb.title")}
+        aria-label={t("fb.title")}
         className="flex h-9 items-center gap-1.5 rounded-xl bg-surface-2 px-2.5 text-xs font-medium text-muted transition-colors hover:bg-border hover:text-text"
       >
         <MessageSquarePlus size={16} />
-        <span className="hidden sm:inline">Feedback</span>
+        <span className="hidden sm:inline">{t("fb.label")}</span>
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent title="Enviar feedback" className="max-w-sm">
+        <DialogContent title={t("fb.title")} className="max-w-sm">
           {limited ? (
             <div className="space-y-3">
               <p className="text-sm text-muted">
-                Você já enviou um feedback recentemente — valeu! 🙏 Pode mandar
-                outro em <b className="text-text">{daysLeft} dia(s)</b>.
+                {t("fb.limitedMsg", { count: daysLeft })}
               </p>
               <p className="text-xs text-muted">
-                (Limite de 1 por mês pra evitar spam. Bug urgente? Fale direto:{" "}
-                {FEEDBACK_EMAIL})
+                {t("fb.limitedNote", { email: FEEDBACK_EMAIL })}
               </p>
               <div className="flex justify-end">
                 <Button variant="outline" onClick={() => setOpen(false)}>
-                  Fechar
+                  {t("common.close")}
                 </Button>
               </div>
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-sm text-muted">
-                Achou um bug ou tem uma ideia? Conta aqui (1 por mês).
-              </p>
+              <p className="text-sm text-muted">{t("fb.prompt")}</p>
               <Textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="Sua mensagem…"
+                placeholder={t("fb.placeholder")}
                 autoFocus
               />
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setOpen(false)}>
-                  Cancelar
+                  {t("common.cancel")}
                 </Button>
                 <Button onClick={send} disabled={sending || !text.trim()}>
-                  {sending ? "Enviando…" : "Enviar"}
+                  {sending ? t("fb.sending") : t("fb.send")}
                 </Button>
               </div>
             </div>

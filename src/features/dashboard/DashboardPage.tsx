@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { useTranslation } from "react-i18next";
 import { Plus, Eye, EyeOff, Lock, CalendarClock, Repeat, CreditCard } from "lucide-react";
 import { useAccounts, useAllTransactions, useCategories } from "@/db/hooks";
 import { db } from "@/db/schema";
@@ -12,6 +13,7 @@ import {
 } from "@/lib/calc";
 import { projectedNet, lastDayOfMonth } from "@/lib/recurrence";
 import { formatMoney } from "@/lib/money";
+import { monthShort as monthShortFmt, monthLong } from "@/lib/format";
 import { currentMonth, cn } from "@/lib/utils";
 import { useSettings, makeRateFn } from "@/lib/settings";
 import { usePrivacy, isListed } from "@/lib/privacy";
@@ -29,12 +31,11 @@ function shiftMonth(month: string, delta: number): string {
 }
 
 function monthShort(month: string): string {
-  return new Date(month + "-01T00:00:00")
-    .toLocaleDateString("pt-BR", { month: "short" })
-    .replace(".", "");
+  return monthShortFmt(month).replace(".", "");
 }
 
 export function DashboardPage() {
+  const { t } = useTranslation();
   const accounts = useAccounts();
   const transactions = useAllTransactions();
   const categoriesArr = useCategories();
@@ -136,19 +137,28 @@ export function DashboardPage() {
     [transactions, privacyMode],
   );
 
-  const monthLabel = new Date(from + "T00:00:00").toLocaleDateString("pt-BR", {
-    month: "long",
-    year: "numeric",
-  });
+  const monthLabel = monthLong(from);
+
+  const dueDateLabel = (date: string): string => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const d = new Date(date + "T00:00:00");
+    const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+    if (diff <= 0) return t("dashboard.today");
+    if (diff === 1) return t("dashboard.tomorrow");
+    if (diff <= 13) return t("dashboard.inDays", { count: diff });
+    const [, m, dd] = date.split("-");
+    return `${dd}/${m}`;
+  };
 
   return (
     <div>
       <PageHeader
-        title="Início"
+        title={t("dashboard.title")}
         subtitle={capitalize(monthLabel)}
         action={
           <Button onClick={() => setFormOpen(true)}>
-            <Plus size={18} /> Lançar
+            <Plus size={18} /> {t("dashboard.newEntry")}
           </Button>
         }
       />
@@ -173,11 +183,15 @@ export function DashboardPage() {
         </div>
 
         <div className="mt-4 flex items-center justify-between text-sm text-muted">
-          <span>Saldo consolidado</span>
+          <span>{t("dashboard.consolidatedBalance")}</span>
           <button
             onClick={() => setHideBalance((v) => !v)}
             className="rounded-lg p-1 hover:bg-surface-2"
-            aria-label={hideBalance ? "Mostrar saldo" : "Esconder saldo"}
+            aria-label={
+              hideBalance
+                ? t("dashboard.showBalance")
+                : t("dashboard.hideBalance")
+            }
           >
             {hideBalance ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
@@ -185,19 +199,19 @@ export function DashboardPage() {
 
         <p className="mt-0.5 text-[32px] font-extrabold leading-tight tracking-tight tabular">
           {hideBalance
-            ? "R$ ••••••"
+            ? "••••••"
             : formatMoney(totalBalance, settings.baseCurrency)}
         </p>
 
         <div className="mb-3 mt-3 flex gap-5 text-sm">
           <span className="text-muted">
-            Entradas{" "}
+            {t("dashboard.income")}{" "}
             <b className="font-bold text-income">
               +{formatMoney(cf.income, settings.baseCurrency)}
             </b>
           </span>
           <span className="text-muted">
-            Saídas{" "}
+            {t("dashboard.expenses")}{" "}
             <b className="font-bold text-expense">
               −{formatMoney(cf.expense, settings.baseCurrency)}
             </b>
@@ -208,11 +222,13 @@ export function DashboardPage() {
           selectedMonth === thisMonth &&
           previsto !== totalBalance && (
             <p className="mb-3 -mt-1 text-xs text-muted">
-              Previsto fim do mês:{" "}
+              {t("dashboard.projectedShort")}{" "}
               <b className="tabular text-text">
                 {formatMoney(previsto, settings.baseCurrency)}
               </b>{" "}
-              <span className="text-[11px]">(com recorrências)</span>
+              <span className="text-[11px]">
+                {t("dashboard.withRecurring")}
+              </span>
             </p>
           )}
 
@@ -226,7 +242,9 @@ export function DashboardPage() {
         <Card className="anim-in mb-4" style={{ animationDelay: "40ms" }}>
           <div className="mb-2 flex items-center gap-2">
             <CalendarClock size={18} className="text-primary" />
-            <h2 className="text-base font-semibold">Próximos vencimentos</h2>
+            <h2 className="text-base font-semibold">
+              {t("dashboard.upcoming")}
+            </h2>
           </div>
           <div className="space-y-0.5">
             {due.map((d, i) => (
@@ -264,7 +282,9 @@ export function DashboardPage() {
       {spending.total > 0 && (
         <Card className="anim-in mb-4" style={{ animationDelay: "80ms" }}>
           <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="text-base font-semibold">Gastos do mês</h2>
+            <h2 className="text-base font-semibold">
+              {t("dashboard.topSpending")}
+            </h2>
             <span className="tabular font-bold">
               {formatMoney(spending.total, settings.baseCurrency)}
             </span>
@@ -272,17 +292,17 @@ export function DashboardPage() {
 
           {/* barra empilhada */}
           <div className="bar-grow flex h-4 overflow-hidden rounded-lg bg-surface-2">
-            {spending.top.map((t) => {
+            {spending.top.map((item) => {
               const cat =
-                !t.isPrivate && t.categoryId
-                  ? categoryMap.get(t.categoryId)
+                !item.isPrivate && item.categoryId
+                  ? categoryMap.get(item.categoryId)
                   : undefined;
               return (
                 <div
-                  key={t.categoryId ?? "none"}
+                  key={item.categoryId ?? "none"}
                   style={{
-                    width: `${(t.total / spending.total) * 100}%`,
-                    backgroundColor: t.isPrivate
+                    width: `${(item.total / spending.total) * 100}%`,
+                    backgroundColor: item.isPrivate
                       ? "#64748b"
                       : (cat?.color ?? "#94a3b8"),
                   }}
@@ -301,8 +321,8 @@ export function DashboardPage() {
 
           {/* legenda */}
           <div className="mt-3 space-y-0.5">
-            {spending.top.map((t) => {
-              if (t.isPrivate) {
+            {spending.top.map((item) => {
+              if (item.isPrivate) {
                 return (
                   <div
                     key="private"
@@ -311,15 +331,19 @@ export function DashboardPage() {
                     <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-[#64748b]/20 text-[#94a3b8]">
                       <Lock size={13} />
                     </span>
-                    <span className="flex-1 truncate text-muted">Privado</span>
+                    <span className="flex-1 truncate text-muted">
+                      {t("dashboard.private")}
+                    </span>
                     <span className="tabular text-muted">•••••</span>
                   </div>
                 );
               }
-              const cat = t.categoryId ? categoryMap.get(t.categoryId) : undefined;
+              const cat = item.categoryId
+                ? categoryMap.get(item.categoryId)
+                : undefined;
               return (
                 <div
-                  key={t.categoryId ?? "none"}
+                  key={item.categoryId ?? "none"}
                   className="flex items-center gap-2.5 py-0.5 text-sm"
                 >
                   <CategoryIcon
@@ -328,10 +352,10 @@ export function DashboardPage() {
                     size={26}
                   />
                   <span className="flex-1 truncate">
-                    {cat?.name ?? "Sem categoria"}
+                    {cat?.name ?? t("dashboard.noCategory")}
                   </span>
                   <span className="tabular text-muted">
-                    {formatMoney(t.total)}
+                    {formatMoney(item.total)}
                   </span>
                 </div>
               );
@@ -339,7 +363,7 @@ export function DashboardPage() {
             {spending.restTotal > 0 && (
               <div className="flex items-center gap-2.5 py-0.5 text-sm">
                 <span className="h-[26px] w-[26px] shrink-0 rounded-full bg-[#64748b]/20" />
-                <span className="flex-1 text-muted">Outros</span>
+                <span className="flex-1 text-muted">{t("dashboard.others")}</span>
                 <span className="tabular text-muted">
                   {formatMoney(spending.restTotal)}
                 </span>
@@ -352,7 +376,9 @@ export function DashboardPage() {
       {/* Recentes */}
       {recent.length > 0 && (
         <Card className="anim-in p-2" style={{ animationDelay: "160ms" }}>
-          <h2 className="px-2 py-1 text-base font-semibold">Recentes</h2>
+          <h2 className="px-2 py-1 text-base font-semibold">
+            {t("dashboard.recent")}
+          </h2>
           {recent.map((tx) => (
             <TransactionItem
               key={tx.id}
@@ -371,16 +397,4 @@ export function DashboardPage() {
 
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-function dueDateLabel(date: string): string {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const d = new Date(date + "T00:00:00");
-  const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
-  if (diff <= 0) return "hoje";
-  if (diff === 1) return "amanhã";
-  if (diff <= 13) return `em ${diff} dias`;
-  const [, m, dd] = date.split("-");
-  return `${dd}/${m}`;
 }

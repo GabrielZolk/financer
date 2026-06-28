@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Line,
   LineChart,
@@ -14,6 +15,7 @@ import {
   spendingBreakdown,
 } from "@/lib/calc";
 import { formatMoney, fromCents } from "@/lib/money";
+import { monthShort } from "@/lib/format";
 import { currentMonth } from "@/lib/utils";
 import { usePrivacy } from "@/lib/privacy";
 import { Card, EmptyState } from "@/components/ui/primitives";
@@ -23,11 +25,11 @@ import { cn } from "@/lib/utils";
 
 type Period = "month" | "3m" | "6m" | "year";
 
-const PERIODS: { key: Period; label: string }[] = [
-  { key: "month", label: "Mês" },
-  { key: "3m", label: "3 meses" },
-  { key: "6m", label: "6 meses" },
-  { key: "year", label: "Ano" },
+const PERIODS: { key: Period; labelKey: string }[] = [
+  { key: "month", labelKey: "reports.periodMonth" },
+  { key: "3m", labelKey: "reports.period3m" },
+  { key: "6m", labelKey: "reports.period6m" },
+  { key: "year", labelKey: "reports.periodYear" },
 ];
 
 function shiftMonth(month: string, delta: number): string {
@@ -103,6 +105,7 @@ function DeltaChip({ delta }: { delta: number | null }) {
 }
 
 export function ReportsPage() {
+  const { t } = useTranslation();
   const transactions = useAllTransactions();
   const { mode: privacyMode } = usePrivacy();
   const categories = useCategories("expense");
@@ -150,9 +153,7 @@ export function ReportsPage() {
           )?.total ?? 0)
         : cashflow(transactions, f, t).expense;
       return {
-        month: new Date(m + "-01T00:00:00")
-          .toLocaleDateString("pt-BR", { month: "short" })
-          .replace(".", ""),
+        month: monthShort(m).replace(".", ""),
         valor: fromCents(value),
         cents: value,
       };
@@ -191,10 +192,10 @@ export function ReportsPage() {
   if (transactions.length === 0) {
     return (
       <div>
-        <PageHeader title="Relatórios" />
+        <PageHeader title={t("reports.title")} />
         <EmptyState
-          title="Sem dados ainda"
-          description="Registre lançamentos para ver os relatórios."
+          title={t("reports.emptyTitle")}
+          description={t("reports.emptyDesc")}
         />
       </div>
     );
@@ -206,12 +207,12 @@ export function ReportsPage() {
       : undefined;
   const biggestName =
     summary.biggest?.categoryId === "__private__"
-      ? "Privado"
+      ? t("reports.private")
       : (biggestCat?.name ?? "—");
 
   return (
     <div>
-      <PageHeader title="Relatórios" />
+      <PageHeader title={t("reports.title")} />
 
       {/* seletor de período */}
       <div className="mb-4 inline-flex gap-0.5 rounded-xl bg-surface-2 p-1">
@@ -226,7 +227,7 @@ export function ReportsPage() {
                 : "text-muted hover:text-text",
             )}
           >
-            {p.label}
+            {t(p.labelKey)}
           </button>
         ))}
       </div>
@@ -234,32 +235,36 @@ export function ReportsPage() {
       {/* cards de insight */}
       <div className="mb-4 grid grid-cols-2 gap-3">
         <Card className="anim-in">
-          <p className="text-xs text-muted">Gasto no período</p>
+          <p className="text-xs text-muted">{t("reports.spentInPeriod")}</p>
           <p className="mt-0.5 text-xl font-extrabold tabular">
             {formatMoney(summary.expense)}
           </p>
           <div className="mt-1">
             {summary.expenseDelta !== null ? (
               <span className="text-[11px] text-muted">
-                vs anterior <DeltaChip delta={summary.expenseDelta} />
+                {t("reports.vsPrev")} <DeltaChip delta={summary.expenseDelta} />
               </span>
             ) : (
-              <span className="text-[11px] text-muted">sem período anterior</span>
+              <span className="text-[11px] text-muted">
+                {t("reports.noPrev")}
+              </span>
             )}
           </div>
         </Card>
         <Card className="anim-in" style={{ animationDelay: "60ms" }}>
-          <p className="text-xs text-muted">Economia</p>
+          <p className="text-xs text-muted">{t("reports.savings")}</p>
           <p
             className="mt-0.5 text-xl font-extrabold tabular"
             style={{ color: summary.economia >= 0 ? "var(--income)" : "var(--expense)" }}
           >
             {formatMoney(summary.economia)}
           </p>
-          <p className="mt-1 text-[11px] text-muted">entradas − saídas</p>
+          <p className="mt-1 text-[11px] text-muted">
+            {t("reports.incomeMinusExpense")}
+          </p>
         </Card>
         <Card className="anim-in" style={{ animationDelay: "120ms" }}>
-          <p className="text-xs text-muted">Maior categoria</p>
+          <p className="text-xs text-muted">{t("reports.biggestCategory")}</p>
           <div className="mt-1 flex items-center gap-2">
             {summary.biggest?.categoryId === "__private__" ? (
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#64748b]/20 text-[#94a3b8]">
@@ -271,30 +276,32 @@ export function ReportsPage() {
             <div className="min-w-0">
               <p className="truncate text-sm font-bold">{biggestName}</p>
               <p className="text-[11px] text-muted">
-                {Math.round(summary.biggestPct)}% dos gastos
+                {t("reports.pctOfSpending", {
+                  pct: Math.round(summary.biggestPct),
+                })}
               </p>
             </div>
           </div>
         </Card>
         <Card className="anim-in" style={{ animationDelay: "180ms" }}>
-          <p className="text-xs text-muted">Média por dia</p>
+          <p className="text-xs text-muted">{t("reports.perDay")}</p>
           <p className="mt-0.5 text-xl font-extrabold tabular">
             {formatMoney(summary.perDay)}
           </p>
-          <p className="mt-1 text-[11px] text-muted">no período</p>
+          <p className="mt-1 text-[11px] text-muted">{t("reports.inPeriod")}</p>
         </Card>
       </div>
 
       {/* tendência (6 meses) com seletor de categoria */}
       <Card className="mb-4">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <h2 className="text-base font-semibold">Tendência</h2>
+          <h2 className="text-base font-semibold">{t("reports.trend")}</h2>
           <select
             value={trendCat}
             onChange={(e) => setTrendCat(e.target.value)}
             className="h-8 rounded-lg border border-border bg-surface px-2 text-xs outline-none"
           >
-            <option value="">Total</option>
+            <option value="">{t("reports.total")}</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -303,7 +310,9 @@ export function ReportsPage() {
           </select>
         </div>
         <p className="mb-2 text-xs text-muted">
-          média {formatMoney(Math.round(trend.avg))}/mês
+          {t("reports.avgPerMonth", {
+            value: formatMoney(Math.round(trend.avg)),
+          })}
         </p>
         <div className="h-44">
           <ResponsiveContainer width="100%" height="100%">
@@ -339,7 +348,9 @@ export function ReportsPage() {
 
       {/* categorias com delta */}
       <Card>
-        <h2 className="mb-3 text-base font-semibold">Por categoria</h2>
+        <h2 className="mb-3 text-base font-semibold">
+          {t("reports.byCategory")}
+        </h2>
         <div className="space-y-0.5">
           {catList.items.map((c) => {
             if (c.isPrivate) {
@@ -348,7 +359,9 @@ export function ReportsPage() {
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#64748b]/20 text-[#94a3b8]">
                     <Lock size={13} />
                   </span>
-                  <span className="flex-1 text-muted">Privado</span>
+                  <span className="flex-1 text-muted">
+                    {t("reports.private")}
+                  </span>
                   <span className="tabular text-muted">•••••</span>
                 </div>
               );
@@ -361,7 +374,7 @@ export function ReportsPage() {
               >
                 <CategoryIcon icon={cat?.icon} color={cat?.color ?? "#94a3b8"} size={28} />
                 <span className="flex-1 truncate">
-                  {cat?.name ?? "Sem categoria"}
+                  {cat?.name ?? t("reports.noCategory")}
                 </span>
                 <DeltaChip delta={c.delta} />
                 <span className="w-20 text-right tabular text-muted">

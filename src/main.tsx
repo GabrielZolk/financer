@@ -3,15 +3,23 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
 import { seedIfEmpty } from "@/db/seed";
-import { getSetting, applyTheme } from "@/lib/settings";
+import { getSetting, applyTheme, applyPalette } from "@/lib/settings";
 import { initAuth } from "@/lib/sync";
 import { initPrivacy } from "@/lib/privacy";
 import { initAppLock } from "@/lib/applock";
 import { runRecurrences } from "@/features/recurrences/runRecurrences";
+import { initI18n } from "@/lib/i18n";
+import { normalizeLang, detectInitialLang } from "@/lib/i18n/config";
 
 async function bootstrap() {
   await seedIfEmpty();
+
+  // idioma: preferência salva (Dexie) → localStorage/navegador
+  const savedLang = await getSetting("language");
+  await initI18n(savedLang ? normalizeLang(savedLang) : detectInitialLang());
+
   applyTheme(await getSetting("theme"));
+  applyPalette(await getSetting("palette"));
   await initPrivacy();
   initAppLock();
 

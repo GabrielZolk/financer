@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import i18n from "@/lib/i18n";
 
 /** Combina classes Tailwind resolvendo conflitos. */
 export function cn(...inputs: ClassValue[]): string {
@@ -27,5 +28,5 @@ export function currentMonth(date = new Date()): string {
 
 /** Confirmação padrão antes de excluir algo (evita exclusão acidental). */
 export function confirmDelete(what: string): boolean {
-  return window.confirm(`Excluir ${what}? Essa ação não pode ser desfeita.`);
+  return window.confirm(i18n.t("common.confirmDelete", { what }));
 }

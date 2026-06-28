@@ -2,6 +2,7 @@
  * Money handling — valores SEMPRE em centavos inteiros (BigInt-safe range).
  * Nunca usar float para dinheiro. Todas as operações aqui são exatas.
  */
+import { getActiveLocale } from "@/lib/i18n/config";
 
 export type Cents = number;
 
@@ -76,7 +77,7 @@ function getFormatter(currency: string, locale = "pt-BR"): Intl.NumberFormat {
 export function formatMoney(
   cents: Cents,
   currency = "BRL",
-  locale = "pt-BR",
+  locale = getActiveLocale(),
 ): string {
   return getFormatter(currency, locale).format(cents / 100);
 }
@@ -85,7 +86,7 @@ export function formatMoney(
 export function formatSigned(
   cents: Cents,
   currency = "BRL",
-  locale = "pt-BR",
+  locale = getActiveLocale(),
 ): string {
   const sign = cents > 0 ? "+" : cents < 0 ? "-" : "";
   return sign + formatMoney(Math.abs(cents), currency, locale);

@@ -10,6 +10,7 @@ import {
 } from "date-fns";
 import type { Account, Transaction } from "@/db/types";
 import type { Cents } from "@/lib/money";
+import { getActiveLocale } from "@/lib/i18n/config";
 
 /** Retorna uma data no mês de `base` com o dia pedido, limitado ao fim do mês. */
 function dateWithDay(base: Date, day: number): Date {
@@ -113,7 +114,7 @@ function buildInvoice(
   return {
     ym: format(closeDate, "yyyy-MM"),
     monthLabel: closeDate
-      .toLocaleDateString("pt-BR", { month: "short" })
+      .toLocaleDateString(getActiveLocale(), { month: "short" })
       .replace(".", ""),
     totalCents: total,
     cycleStart: startStr,

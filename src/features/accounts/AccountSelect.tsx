@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Select } from "@/components/ui/primitives";
 import { AccountForm } from "./AccountForm";
 import type { Account, AccountType } from "@/db/types";
@@ -15,7 +16,7 @@ export function AccountSelect({
   accounts,
   exclude,
   includeNone,
-  noneLabel = "Nenhuma",
+  noneLabel,
   defaultType = "checking",
   className,
 }: {
@@ -31,6 +32,7 @@ export function AccountSelect({
   defaultType?: AccountType;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const [formOpen, setFormOpen] = useState(false);
   const list = exclude ? accounts.filter((a) => a.id !== exclude) : accounts;
 
@@ -43,13 +45,15 @@ export function AccountSelect({
           e.target.value === NEW ? setFormOpen(true) : onChange(e.target.value)
         }
       >
-        {includeNone && <option value="">{noneLabel}</option>}
+        {includeNone && (
+          <option value="">{noneLabel ?? t("common.none")}</option>
+        )}
         {list.map((a) => (
           <option key={a.id} value={a.id}>
             {a.name}
           </option>
         ))}
-        <option value={NEW}>+ Nova conta…</option>
+        <option value={NEW}>{t("acc.selectNew")}</option>
       </Select>
       <AccountForm
         open={formOpen}

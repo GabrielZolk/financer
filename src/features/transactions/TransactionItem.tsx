@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeftRight,
   ArrowDownLeft,
@@ -8,6 +9,7 @@ import {
 } from "lucide-react";
 import type { Account, Category, Transaction } from "@/db/types";
 import { formatMoney } from "@/lib/money";
+import { formatDate as fmtDate, formatDayMonth } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { iconFor } from "@/lib/icons";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
@@ -23,6 +25,7 @@ export function TransactionItem({
   categories: Map<string, Category>;
   onClick?: () => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const account = accounts.get(tx.accountId);
   const category = tx.categoryId ? categories.get(tx.categoryId) : undefined;
@@ -51,8 +54,8 @@ export function TransactionItem({
   const subtitle = isTransfer
     ? `${account?.name ?? "?"} → ${accounts.get(tx.toAccountId ?? "")?.name ?? "?"}`
     : hasSplits
-      ? `${tx.splits!.length} categorias · ${account?.name ?? ""}`
-      : `${category?.name ?? "Sem categoria"} · ${account?.name ?? ""}`;
+      ? `${t("tx.nCategories", { count: tx.splits!.length })} · ${account?.name ?? ""}`
+      : `${category?.name ?? t("tx.noCategory")} · ${account?.name ?? ""}`;
 
   return (
     <div>
@@ -94,7 +97,7 @@ export function TransactionItem({
               )}
               {tx.status === "pending" && (
                 <span className="rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] text-muted">
-                  pendente
+                  {t("tx.pendingBadge")}
                 </span>
               )}
               {tx.reimbursable === 1 && (
@@ -106,7 +109,9 @@ export function TransactionItem({
                       : { background: "color-mix(in srgb,#f59e0b 22%,transparent)", color: "#f59e0b" }
                   }
                 >
-                  {tx.reimbursed === 1 ? "reembolsado" : "a reembolsar"}
+                  {tx.reimbursed === 1
+                    ? t("tx.reimbursedBadge")
+                    : t("tx.toReimburseBadge")}
                 </span>
               )}
             </p>
@@ -119,8 +124,12 @@ export function TransactionItem({
             </p>
             <p className="text-xs text-muted">
               {tx.endDate && tx.endDate !== tx.date
-                ? `${shortDate(tx.date)}–${shortDate(tx.endDate)}`
-                : formatDate(tx.date)}
+                ? `${formatDayMonth(tx.date)}–${formatDayMonth(tx.endDate)}`
+                : fmtDate(tx.date, {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "2-digit",
+                  })}
             </p>
           </div>
         </button>
@@ -128,7 +137,7 @@ export function TransactionItem({
           <button
             onClick={() => setOpen((o) => !o)}
             className="shrink-0 rounded-lg p-1 text-muted hover:bg-surface-2"
-            aria-label={open ? "Ocultar divisão" : "Ver divisão"}
+            aria-label={open ? t("tx.hideSplit") : t("tx.showSplit")}
           >
             <ChevronDown
               size={16}
@@ -145,13 +154,13 @@ export function TransactionItem({
             const c = cat?.color ?? "#94a3b8";
             const pct =
               tx.amountCents > 0 ? (s.amountCents / tx.amountCents) * 100 : 0;
-            const title = s.description || cat?.name || "Sem categoria";
+            const title = s.description || cat?.name || t("tx.noCategory");
             const meta = [
-              s.description ? (cat?.name ?? "Sem categoria") : null,
+              s.description ? (cat?.name ?? t("tx.noCategory")) : null,
               s.quantity && s.unitAmountCents
                 ? `${s.quantity} × ${formatMoney(s.unitAmountCents, tx.currency)}`
                 : null,
-              s.date && s.date !== tx.date ? shortDate(s.date) : null,
+              s.date && s.date !== tx.date ? formatDayMonth(s.date) : null,
             ]
               .filter(Boolean)
               .join(" · ");
@@ -205,12 +214,3 @@ export function TransactionItem({
   );
 }
 
-function formatDate(date: string): string {
-  const [y, m, d] = date.split("-");
-  return `${d}/${m}/${y.slice(2)}`;
-}
-
-function shortDate(date: string): string {
-  const [, m, d] = date.split("-");
-  return `${d}/${m}`;
-}

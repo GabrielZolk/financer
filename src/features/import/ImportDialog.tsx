@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Upload, FileText } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button, Label, Select } from "@/components/ui/primitives";
@@ -24,6 +25,7 @@ export function ImportDialog({
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const accounts = useAccounts(true);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -82,11 +84,11 @@ export function ImportDialog({
 
   async function confirmImport() {
     if (!accountId) {
-      setError("Selecione a conta de destino.");
+      setError(t("imp.errDest"));
       return;
     }
     if (!parsed.length) {
-      setError("Nenhum lançamento reconhecido.");
+      setError(t("imp.errNone"));
       return;
     }
     const account = accounts.find((a) => a.id === accountId);
@@ -117,15 +119,12 @@ export function ImportDialog({
         onOpenChange(o);
       }}
     >
-      <DialogContent title="Importar extrato">
+      <DialogContent title={t("imp.title")}>
         {mode === "idle" && (
           <div className="space-y-4">
-            <p className="text-sm text-muted">
-              Importe um extrato em <strong>CSV</strong> ou <strong>OFX</strong>{" "}
-              do seu banco. Valores negativos viram despesas; positivos, receitas.
-            </p>
+            <p className="text-sm text-muted">{t("imp.intro")}</p>
             <Button className="w-full" onClick={() => fileRef.current?.click()}>
-              <Upload size={16} /> Escolher arquivo
+              <Upload size={16} /> {t("imp.chooseFile")}
             </Button>
           </div>
         )}
@@ -137,7 +136,7 @@ export function ImportDialog({
             </div>
 
             <div>
-              <Label>Conta de destino</Label>
+              <Label>{t("imp.destAccount")}</Label>
               <Select
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
@@ -156,10 +155,10 @@ export function ImportDialog({
                   <div key={key}>
                     <Label>
                       {key === "date"
-                        ? "Data"
+                        ? t("imp.colDate")
                         : key === "description"
-                          ? "Descrição"
-                          : "Valor"}
+                          ? t("imp.colDescription")
+                          : t("imp.colAmount")}
                     </Label>
                     <Select
                       value={String(cols[key])}
@@ -169,7 +168,7 @@ export function ImportDialog({
                     >
                       {colOptions.map((i) => (
                         <option key={i} value={i}>
-                          Coluna {i + 1}
+                          {t("imp.column", { n: i + 1 })}
                         </option>
                       ))}
                     </Select>
@@ -180,7 +179,7 @@ export function ImportDialog({
 
             <div>
               <p className="mb-1 text-sm font-medium">
-                {parsed.length} lançamento(s) reconhecido(s)
+                {t("imp.recognized", { count: parsed.length })}
               </p>
               <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-border p-2">
                 {parsed.slice(0, 30).map((t, i) => (
@@ -204,7 +203,7 @@ export function ImportDialog({
                 ))}
                 {parsed.length === 0 && (
                   <p className="text-xs text-muted">
-                    Nada reconhecido — ajuste as colunas acima.
+                    {t("imp.nothingRecognized")}
                   </p>
                 )}
               </div>
@@ -214,10 +213,10 @@ export function ImportDialog({
 
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={reset}>
-                Trocar arquivo
+                {t("imp.changeFile")}
               </Button>
               <Button onClick={confirmImport} disabled={!parsed.length}>
-                Importar {parsed.length}
+                {t("imp.importN", { count: parsed.length })}
               </Button>
             </div>
           </div>
@@ -226,7 +225,7 @@ export function ImportDialog({
         {mode === "done" && (
           <div className="space-y-4 text-center">
             <p className="text-lg font-semibold text-income">
-              {importedCount} lançamentos importados! ✅
+              {t("imp.doneMsg", { count: importedCount })}
             </p>
             <Button
               className="w-full"
@@ -235,7 +234,7 @@ export function ImportDialog({
                 onOpenChange(false);
               }}
             >
-              Concluir
+              {t("imp.finish")}
             </Button>
           </div>
         )}

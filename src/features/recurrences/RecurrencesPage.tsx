@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { useTranslation } from "react-i18next";
 import { Plus, Repeat, Trash2, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { db } from "@/db/schema";
 import { create, update, softDelete } from "@/db/repo";
 import { useAccounts, useCategories } from "@/db/hooks";
 import { formatMoney, parseMoney } from "@/lib/money";
+import { formatDate } from "@/lib/format";
 import { confirmDelete } from "@/lib/utils";
 import {
   Button,
@@ -21,15 +23,16 @@ import { AccountSelect } from "@/features/accounts/AccountSelect";
 import { PageHeader } from "@/components/PageHeader";
 import type { Recurrence, RecurrenceFrequency, TransactionKind } from "@/db/types";
 
-const FREQ_LABEL: Record<RecurrenceFrequency, string> = {
-  daily: "Diária",
-  weekly: "Semanal",
-  biweekly: "Quinzenal",
-  monthly: "Mensal",
-  yearly: "Anual",
+const FREQ_KEY: Record<RecurrenceFrequency, string> = {
+  daily: "rec.freqDaily",
+  weekly: "rec.freqWeekly",
+  biweekly: "rec.freqBiweekly",
+  monthly: "rec.freqMonthly",
+  yearly: "rec.freqYearly",
 };
 
 export function RecurrencesPage() {
+  const { t } = useTranslation();
   const recurrences = useLiveQuery(
     async () =>
       (await db.recurrences.toArray())
@@ -50,11 +53,11 @@ export function RecurrencesPage() {
         to="/settings"
         className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-text"
       >
-        <ArrowLeft size={16} /> Ajustes
+        <ArrowLeft size={16} /> {t("cat.backSettings")}
       </Link>
       <PageHeader
-        title="Recorrências"
-        subtitle="Lançamentos automáticos: salário, assinaturas, aluguel…"
+        title={t("rec.title")}
+        subtitle={t("rec.subtitle")}
         action={
           <Button
             onClick={() => {
@@ -62,7 +65,7 @@ export function RecurrencesPage() {
               setFormOpen(true);
             }}
           >
-            <Plus size={18} /> Nova
+            <Plus size={18} /> {t("common.new")}
           </Button>
         }
       />
@@ -70,8 +73,8 @@ export function RecurrencesPage() {
       {recurrences.length === 0 ? (
         <EmptyState
           icon={<Repeat size={28} />}
-          title="Nenhuma recorrência"
-          description="Cadastre lançamentos que se repetem e o app cria sozinho na data certa."
+          title={t("rec.emptyTitle")}
+          description={t("rec.emptyDesc")}
         />
       ) : (
         <div className="space-y-2">
@@ -90,8 +93,13 @@ export function RecurrencesPage() {
                 <div className="min-w-0">
                   <p className="truncate font-medium">{r.description}</p>
                   <p className="text-xs text-muted">
-                    {FREQ_LABEL[r.frequency]} · {acc?.name ?? ""} · próx.{" "}
-                    {formatDate(r.nextDate)}
+                    {t(FREQ_KEY[r.frequency])} · {acc?.name ?? ""} ·{" "}
+                    {t("rec.nextPrefix")}{" "}
+                    {formatDate(r.nextDate, {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "2-digit",
+                    })}
                   </p>
                 </div>
                 <span
@@ -123,11 +131,6 @@ export function RecurrencesPage() {
   );
 }
 
-function formatDate(date: string): string {
-  const [y, m, d] = date.split("-");
-  return `${d}/${m}/${y.slice(2)}`;
-}
-
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -141,6 +144,7 @@ function RecurrenceForm({
   onOpenChange: (o: boolean) => void;
   editing?: Recurrence;
 }) {
+  const { t } = useTranslation();
   const accounts = useAccounts();
   const [kind, setKind] = useState<TransactionKind>("expense");
   const categories = useCategories(kind === "transfer" ? undefined : kind);
@@ -198,7 +202,7 @@ function RecurrenceForm({
   async function handleSubmit() {
     const cents = parseMoney(amount);
     if (!description.trim() || !cents || cents <= 0 || !accountId) {
-      setError("Preencha descrição, valor e conta.");
+      setError(t("rec.errFill"));
       return;
     }
     const data = {
@@ -220,7 +224,7 @@ function RecurrenceForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={editing ? "Editar recorrência" : "Nova recorrência"}>
+      <DialogContent title={editing ? t("rec.editTitle") : t("rec.newTitle")}>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
             {(["expense", "income"] as const).map((k) => (
@@ -235,24 +239,24 @@ function RecurrenceForm({
                     : "text-muted"
                 }`}
               >
-                {k === "income" ? "Receita" : "Despesa"}
+                {k === "income" ? t("rec.kindIncome") : t("rec.kindExpense")}
               </button>
             ))}
           </div>
 
           <div>
-            <Label>Descrição</Label>
+            <Label>{t("rec.description")}</Label>
             <Input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Ex.: Salário, Netflix, Aluguel"
+              placeholder={t("rec.descPlaceholder")}
               autoFocus
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Valor</Label>
+              <Label>{t("rec.amount")}</Label>
               <Input
                 inputMode="decimal"
                 placeholder="0,00"
@@ -262,16 +266,16 @@ function RecurrenceForm({
               />
             </div>
             <div>
-              <Label>Frequência</Label>
+              <Label>{t("rec.frequency")}</Label>
               <Select
                 value={frequency}
                 onChange={(e) =>
                   setFrequency(e.target.value as RecurrenceFrequency)
                 }
               >
-                {Object.entries(FREQ_LABEL).map(([v, l]) => (
+                {Object.entries(FREQ_KEY).map(([v, k]) => (
                   <option key={v} value={v}>
-                    {l}
+                    {t(k)}
                   </option>
                 ))}
               </Select>
@@ -280,7 +284,7 @@ function RecurrenceForm({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Conta</Label>
+              <Label>{t("rec.account")}</Label>
               <AccountSelect
                 value={accountId}
                 onChange={setAccountId}
@@ -288,22 +292,22 @@ function RecurrenceForm({
               />
             </div>
             <div>
-              <Label>Categoria</Label>
+              <Label>{t("rec.category")}</Label>
               <Select value={categoryId} onChange={(e) => onPickCategory(e.target.value)}>
-                <option value="">Sem categoria</option>
+                <option value="">{t("rec.noCategory")}</option>
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
                 ))}
-                <option value="__new__">+ Nova categoria…</option>
+                <option value="__new__">{t("rec.newCategory")}</option>
               </Select>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Próximo lançamento</Label>
+              <Label>{t("rec.nextEntry")}</Label>
               <Input
                 type="date"
                 value={nextDate}
@@ -311,7 +315,7 @@ function RecurrenceForm({
               />
             </div>
             <div>
-              <Label>Terminar em (opcional)</Label>
+              <Label>{t("rec.endOptional")}</Label>
               <Input
                 type="date"
                 value={endDate}
@@ -327,7 +331,7 @@ function RecurrenceForm({
               onChange={(e) => setActive(e.target.checked)}
               className="h-4 w-4 rounded border-border"
             />
-            Ativa
+            {t("rec.active")}
           </label>
 
           {error && <p className="text-sm text-expense">{error}</p>}
@@ -338,7 +342,7 @@ function RecurrenceForm({
                 variant="ghost"
                 size="icon"
                 onClick={async () => {
-                  if (!confirmDelete("esta recorrência")) return;
+                  if (!confirmDelete(t("rec.confirmDelete"))) return;
                   await softDelete("recurrences", editing.id);
                   onOpenChange(false);
                 }}
@@ -350,9 +354,9 @@ function RecurrenceForm({
             )}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancelar
+                {t("common.cancel")}
               </Button>
-              <Button onClick={handleSubmit}>Salvar</Button>
+              <Button onClick={handleSubmit}>{t("common.save")}</Button>
             </div>
           </div>
         </div>

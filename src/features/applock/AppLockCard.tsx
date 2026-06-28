@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Lock, ShieldCheck } from "lucide-react";
 import { Button, Card, Input, Label } from "@/components/ui/primitives";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -12,6 +13,7 @@ import {
 type Step = null | "enable" | "disable";
 
 export function AppLockCard() {
+  const { t } = useTranslation();
   const { enabled } = useAppLock();
   const [step, setStep] = useState<Step>(null);
   const [pin, setPin] = useState("");
@@ -28,8 +30,8 @@ export function AppLockCard() {
 
   async function handleEnable() {
     setError("");
-    if (pin.length < 4) return setError("Use um PIN de pelo menos 4 dígitos.");
-    if (pin !== pin2) return setError("Os PINs não conferem.");
+    if (pin.length < 4) return setError(t("common.errPinMin"));
+    if (pin !== pin2) return setError(t("common.errPinMismatch"));
     setBusy(true);
     try {
       await enableAppLock(pin);
@@ -46,7 +48,7 @@ export function AppLockCard() {
       await disableAppLock(pin);
       close();
     } catch {
-      setError("PIN incorreto.");
+      setError(t("common.errPinWrong"));
     } finally {
       setBusy(false);
     }
@@ -56,47 +58,37 @@ export function AppLockCard() {
     <Card className="mb-4">
       <div className="flex items-center gap-2">
         <Lock size={18} className="text-muted" />
-        <h2 className="text-base font-semibold">Bloqueio do app</h2>
+        <h2 className="text-base font-semibold">{t("lock.title")}</h2>
       </div>
       {enabled ? (
         <>
-          <p className="mb-3 mt-1 text-sm text-muted">
-            Ativado — pede o PIN toda vez que o app abre.
-          </p>
+          <p className="mb-3 mt-1 text-sm text-muted">{t("lock.enabledMsg")}</p>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => lockAppNow()}>
-              Bloquear agora
+              {t("lock.lockNow")}
             </Button>
             <Button variant="ghost" onClick={() => setStep("disable")}>
-              Desativar
+              {t("lock.disable")}
             </Button>
           </div>
         </>
       ) : (
         <>
-          <p className="mb-3 mt-1 text-sm text-muted">
-            Exige um PIN para abrir o app inteiro. (PIN próprio, separado da
-            privacidade.)
-          </p>
-          <Button onClick={() => setStep("enable")}>Ativar</Button>
+          <p className="mb-3 mt-1 text-sm text-muted">{t("lock.desc")}</p>
+          <Button onClick={() => setStep("enable")}>{t("lock.enable")}</Button>
         </>
       )}
 
       <Dialog open={step !== null} onOpenChange={(o) => !o && close()}>
         {step === "enable" && (
-          <DialogContent title="Ativar bloqueio do app">
+          <DialogContent title={t("lock.enableTitle")}>
             <div className="space-y-4">
               <div className="flex items-start gap-2 rounded-xl bg-surface-2 p-3 text-sm text-muted">
                 <ShieldCheck size={18} className="mt-0.5 shrink-0 text-primary" />
-                <span>
-                  O app vai pedir este PIN ao abrir.{" "}
-                  <b className="text-expense">
-                    Se esquecer, terá que limpar os dados do app para entrar.
-                  </b>
-                </span>
+                <span>{t("lock.enableWarn")}</span>
               </div>
               <div>
-                <Label>PIN</Label>
+                <Label>{t("common.pin")}</Label>
                 <Input
                   type="text"
                   autoComplete="off"
@@ -104,12 +96,12 @@ export function AppLockCard() {
                   className="pin-mask"
                   value={pin}
                   onChange={(e) => setPin(e.target.value)}
-                  placeholder="mín. 4 dígitos"
+                  placeholder={t("common.pinMin")}
                   autoFocus
                 />
               </div>
               <div>
-                <Label>Repita o PIN</Label>
+                <Label>{t("common.repeatPin")}</Label>
                 <Input
                   type="text"
                   autoComplete="off"
@@ -122,15 +114,15 @@ export function AppLockCard() {
               </div>
               {error && <p className="text-sm text-expense">{error}</p>}
               <Button className="w-full" onClick={handleEnable} disabled={busy}>
-                {busy ? "Ativando…" : "Ativar bloqueio"}
+                {busy ? t("lock.enabling") : t("lock.enableBtn")}
               </Button>
             </div>
           </DialogContent>
         )}
         {step === "disable" && (
-          <DialogContent title="Desativar bloqueio">
+          <DialogContent title={t("lock.disableTitle")}>
             <div className="space-y-4">
-              <Label>Digite o PIN para desativar</Label>
+              <Label>{t("lock.enterPinToDisable")}</Label>
               <Input
                 type="text"
                 autoComplete="off"
@@ -138,13 +130,13 @@ export function AppLockCard() {
                 className="pin-mask"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
-                placeholder="PIN"
+                placeholder={t("common.pin")}
                 autoFocus
                 onKeyDown={(e) => e.key === "Enter" && handleDisable()}
               />
               {error && <p className="text-sm text-expense">{error}</p>}
               <Button className="w-full" onClick={handleDisable} disabled={busy}>
-                {busy ? "…" : "Desativar"}
+                {busy ? "…" : t("lock.disable")}
               </Button>
             </div>
           </DialogContent>

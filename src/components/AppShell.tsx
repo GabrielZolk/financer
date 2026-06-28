@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -7,6 +8,7 @@ import {
   Target,
   BarChart3,
   Settings,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SyncBadge } from "@/features/sync/SyncBadge";
@@ -14,14 +16,14 @@ import { FeitoOverlay } from "@/components/feedback/Feito";
 import { PrivacyControl } from "@/features/privacy/PrivacyControl";
 import { FeedbackButton } from "@/features/feedback/FeedbackButton";
 
-const NAV = [
-  { to: "/", label: "Início", icon: LayoutDashboard, end: true },
-  { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
-  { to: "/accounts", label: "Contas", icon: Wallet },
-  { to: "/budget", label: "Orçamento", icon: PiggyBank },
-  { to: "/goals", label: "Metas", icon: Target },
-  { to: "/reports", label: "Relatórios", icon: BarChart3 },
-  { to: "/settings", label: "Ajustes", icon: Settings },
+const NAV: { to: string; key: string; icon: LucideIcon; end?: boolean }[] = [
+  { to: "/", key: "nav.home", icon: LayoutDashboard, end: true },
+  { to: "/transactions", key: "nav.transactions", icon: ArrowLeftRight },
+  { to: "/accounts", key: "nav.accounts", icon: Wallet },
+  { to: "/budget", key: "nav.budget", icon: PiggyBank },
+  { to: "/goals", key: "nav.goals", icon: Target },
+  { to: "/reports", key: "nav.reports", icon: BarChart3 },
+  { to: "/settings", key: "nav.settings", icon: Settings },
 ];
 
 // Itens prioritários na barra inferior (mobile)
@@ -30,6 +32,7 @@ const MOBILE_NAV = NAV.filter((n) =>
 );
 
 export function AppShell() {
+  const { t } = useTranslation();
   return (
     <div className="flex min-h-full bg-bg">
       {/* Sidebar (desktop) */}
@@ -56,7 +59,7 @@ export function AppShell() {
               }
             >
               <item.icon size={18} />
-              {item.label}
+              {t(item.key)}
             </NavLink>
           ))}
         </nav>
@@ -91,7 +94,7 @@ export function AppShell() {
             }
           >
             <item.icon size={20} />
-            {item.label}
+            {t(item.key)}
           </NavLink>
         ))}
       </nav>

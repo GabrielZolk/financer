@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { ArrowLeft, Plus } from "lucide-react";
 import { useCategories } from "@/db/hooks";
 import { Button, Card } from "@/components/ui/primitives";
@@ -9,6 +10,7 @@ import { CategoryForm } from "./CategoryForm";
 import type { Category, CategoryKind } from "@/db/types";
 
 export function CategoriesPage() {
+  const { t } = useTranslation();
   const expense = useCategories("expense");
   const income = useCategories("income");
   const [formOpen, setFormOpen] = useState(false);
@@ -31,20 +33,20 @@ export function CategoriesPage() {
         to="/settings"
         className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-text"
       >
-        <ArrowLeft size={16} /> Ajustes
+        <ArrowLeft size={16} /> {t("cat.backSettings")}
       </Link>
       <PageHeader
-        title="Categorias"
-        subtitle="Crie e personalize com cor e ícone"
+        title={t("cat.title")}
+        subtitle={t("cat.subtitle")}
         action={
           <Button onClick={() => openNew("expense")}>
-            <Plus size={18} /> Nova
+            <Plus size={18} /> {t("common.new")}
           </Button>
         }
       />
 
-      <Group title="Despesas" items={expense} onEdit={openEdit} onAdd={() => openNew("expense")} />
-      <Group title="Receitas" items={income} onEdit={openEdit} onAdd={() => openNew("income")} />
+      <Group title={t("cat.expenses")} items={expense} onEdit={openEdit} onAdd={() => openNew("expense")} />
+      <Group title={t("cat.incomes")} items={income} onEdit={openEdit} onAdd={() => openNew("income")} />
 
       <CategoryForm
         open={formOpen}
@@ -67,6 +69,7 @@ function Group({
   onEdit: (c: Category) => void;
   onAdd: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="mb-5">
       <div className="mb-2 flex items-center justify-between">
@@ -75,12 +78,12 @@ function Group({
           onClick={onAdd}
           className="text-sm font-medium text-primary hover:underline"
         >
-          + Adicionar
+          {t("cat.add")}
         </button>
       </div>
       <Card className="p-2">
         {items.length === 0 ? (
-          <p className="px-2 py-3 text-sm text-muted">Nenhuma categoria.</p>
+          <p className="px-2 py-3 text-sm text-muted">{t("cat.empty")}</p>
         ) : (
           (() => {
             const ids = new Set(items.map((c) => c.id));

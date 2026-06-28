@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button, Input, Label } from "@/components/ui/primitives";
 import { signIn, signUp, signInWithGoogle } from "@/lib/sync";
@@ -10,12 +11,20 @@ export function AuthDialog({
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<"in" | "up">("in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+
+  function translateError(msg: string): string {
+    if (/invalid login/i.test(msg)) return t("auth.errInvalid");
+    if (/already registered/i.test(msg)) return t("auth.errExists");
+    if (/email not confirmed/i.test(msg)) return t("auth.errNotConfirmed");
+    return msg;
+  }
 
   async function google() {
     setError("");
@@ -32,7 +41,7 @@ export function AuthDialog({
     setError("");
     setInfo("");
     if (!email.trim() || password.length < 6) {
-      setError("Informe e-mail e senha (mín. 6 caracteres).");
+      setError(t("auth.needCredentials"));
       return;
     }
     setBusy(true);
@@ -42,7 +51,7 @@ export function AuthDialog({
         onOpenChange(false);
       } else {
         await signUp(email.trim(), password);
-        setInfo("Conta criada! Já pode entrar com seu e-mail e senha.");
+        setInfo(t("auth.created"));
         setMode("in");
       }
     } catch (err) {
@@ -54,18 +63,14 @@ export function AuthDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={mode === "in" ? "Entrar" : "Criar conta"}>
+      <DialogContent
+        title={mode === "in" ? t("auth.signInTitle") : t("auth.signUpTitle")}
+      >
         <div className="space-y-4">
-          <p className="text-sm text-muted">
-            Entre para sincronizar seus dados entre dispositivos. Tudo continua
-            funcionando offline.
-          </p>
+          <p className="text-sm text-muted">{t("auth.intro")}</p>
           {mode === "up" && (
             <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-300">
-              ⚠️ Use um <b>e-mail verdadeiro</b>. É com ele que você entra em
-              outros aparelhos e recupera a senha. Se errar o e-mail, pode
-              perder o acesso à conta na nuvem (os dados no aparelho continuam
-              salvos).
+              ⚠️ {t("auth.emailWarning")}
             </p>
           )}
           <Button
@@ -77,16 +82,16 @@ export function AuthDialog({
             <span className="mr-2 grid h-5 w-5 place-items-center rounded-full bg-white text-[13px] font-bold text-[#4285F4]">
               G
             </span>
-            Continuar com Google
+            {t("auth.google")}
           </Button>
 
           <div className="flex items-center gap-3 text-xs text-muted">
-            <span className="h-px flex-1 bg-border" /> ou{" "}
+            <span className="h-px flex-1 bg-border" /> {t("auth.or")}{" "}
             <span className="h-px flex-1 bg-border" />
           </div>
 
           <div>
-            <Label>E-mail</Label>
+            <Label>{t("auth.email")}</Label>
             <Input
               type="email"
               autoComplete="email"
@@ -96,7 +101,7 @@ export function AuthDialog({
             />
           </div>
           <div>
-            <Label>Senha</Label>
+            <Label>{t("auth.password")}</Label>
             <Input
               type="password"
               autoComplete={mode === "in" ? "current-password" : "new-password"}
@@ -111,7 +116,11 @@ export function AuthDialog({
           {info && <p className="text-sm text-income">{info}</p>}
 
           <Button className="w-full" onClick={submit} disabled={busy}>
-            {busy ? "Aguarde…" : mode === "in" ? "Entrar" : "Criar conta"}
+            {busy
+              ? t("common.wait")
+              : mode === "in"
+                ? t("auth.signIn")
+                : t("auth.signUp")}
           </Button>
 
           <button
@@ -122,20 +131,10 @@ export function AuthDialog({
               setInfo("");
             }}
           >
-            {mode === "in"
-              ? "Não tem conta? Criar uma"
-              : "Já tem conta? Entrar"}
+            {mode === "in" ? t("auth.toSignUp") : t("auth.toSignIn")}
           </button>
         </div>
       </DialogContent>
     </Dialog>
   );
-}
-
-function translateError(msg: string): string {
-  if (/invalid login/i.test(msg)) return "E-mail ou senha incorretos.";
-  if (/already registered/i.test(msg)) return "Este e-mail já tem conta.";
-  if (/email not confirmed/i.test(msg))
-    return "Confirme seu e-mail antes de entrar.";
-  return msg;
 }

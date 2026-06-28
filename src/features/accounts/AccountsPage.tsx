@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import {
   Plus,
   Wallet,
@@ -11,6 +13,7 @@ import {
 import { useAccounts, useAllTransactions } from "@/db/hooks";
 import { balancesByAccount, currentInvoice } from "@/lib/calc";
 import { formatMoney, formatSigned } from "@/lib/money";
+import { formatDayMonth } from "@/lib/format";
 import { useSettings, makeRateFn } from "@/lib/settings";
 import { Button, Card, EmptyState } from "@/components/ui/primitives";
 import { PageHeader } from "@/components/PageHeader";
@@ -26,16 +29,16 @@ const ICONS: Record<AccountType, typeof Wallet> = {
 };
 
 function dayMonth(iso: string): string {
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(".", "");
+  return formatDayMonth(iso).replace(".", "");
 }
 function nextDayMonth(iso: string): string {
   const d = new Date(iso + "T00:00:00");
   d.setDate(d.getDate() + 1);
-  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(".", "");
+  return formatDayMonth(d).replace(".", "");
 }
 
 export function AccountsPage() {
+  const { t } = useTranslation();
   const accounts = useAccounts(true);
   const transactions = useAllTransactions();
   const settings = useSettings();
@@ -80,21 +83,21 @@ export function AccountsPage() {
   return (
     <div>
       <PageHeader
-        title="Contas"
+        title={t("acc.title")}
         action={
           <Button onClick={openNew}>
-            <Plus size={18} /> Nova
+            <Plus size={18} /> {t("acc.new")}
           </Button>
         }
       />
 
       {accounts.length === 0 ? (
         <EmptyState
-          title="Nenhuma conta"
-          description="Crie contas, carteiras ou cartões para organizar seu dinheiro."
+          title={t("acc.emptyTitle")}
+          description={t("acc.emptyDesc")}
           action={
             <Button onClick={openNew}>
-              <Plus size={18} /> Nova conta
+              <Plus size={18} /> {t("acc.newAccount")}
             </Button>
           }
         />
@@ -102,7 +105,7 @@ export function AccountsPage() {
         <>
           {/* Patrimônio líquido */}
           <Card className="anim-in mb-4">
-            <p className="text-xs text-muted">Patrimônio líquido</p>
+            <p className="text-xs text-muted">{t("acc.netWorth")}</p>
             <p
               className="text-2xl font-extrabold tabular"
               style={{ color: liquido < 0 ? "var(--expense)" : undefined }}
@@ -111,14 +114,14 @@ export function AccountsPage() {
             </p>
             <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs">
               <span className="text-muted">
-                em contas
+                {t("acc.inAccounts")}
                 <b className="block text-sm text-income">
                   {formatMoney(contasTotal, settings.baseCurrency)}
                 </b>
               </span>
               {cards.length > 0 && (
                 <span className="text-muted">
-                  {cardSum < 0 ? "dívida de cartão" : "cartões"}
+                  {cardSum < 0 ? t("acc.cardDebt") : t("acc.cards")}
                   <b
                     className="block text-sm"
                     style={{ color: cardSum < 0 ? "var(--expense)" : "var(--income)" }}
@@ -133,7 +136,7 @@ export function AccountsPage() {
           {/* Contas */}
           {contas.length > 0 && (
             <>
-              <SectionLabel>Contas</SectionLabel>
+              <SectionLabel>{t("acc.sectionAccounts")}</SectionLabel>
               <div className="grid gap-3 sm:grid-cols-2">
                 {contas.map((acc, i) => (
                   <AccountCard
@@ -141,6 +144,7 @@ export function AccountsPage() {
                     acc={acc}
                     balance={balances.get(acc.id) ?? 0}
                     delay={i}
+                    t={t}
                     onClick={() => {
                       setEditing(acc);
                       setFormOpen(true);
@@ -154,7 +158,7 @@ export function AccountsPage() {
           {/* Cartões */}
           {cards.length > 0 && (
             <>
-              <SectionLabel>Cartões</SectionLabel>
+              <SectionLabel>{t("acc.sectionCards")}</SectionLabel>
               <div className="space-y-3">
                 {cards.map((acc, i) => (
                   <CreditCardVisual
@@ -162,6 +166,7 @@ export function AccountsPage() {
                     acc={acc}
                     transactions={transactions}
                     delay={i}
+                    t={t}
                     onClick={() => navigate(`/cards/${acc.id}`)}
                   />
                 ))}
@@ -193,11 +198,13 @@ function AccountCard({
   acc,
   balance,
   delay,
+  t,
   onClick,
 }: {
   acc: Account;
   balance: number;
   delay: number;
+  t: TFunction;
   onClick: () => void;
 }) {
   const Icon = ICONS[acc.type];
@@ -215,7 +222,7 @@ function AccountCard({
           <Icon size={20} />
         </span>
         {acc.archived ? (
-          <span className="text-xs text-muted">arquivada</span>
+          <span className="text-xs text-muted">{t("acc.archived")}</span>
         ) : null}
       </div>
       <p className="mt-3 text-sm text-muted">{acc.name}</p>
@@ -233,11 +240,13 @@ function CreditCardVisual({
   acc,
   transactions,
   delay,
+  t,
   onClick,
 }: {
   acc: Account;
   transactions: Transaction[];
   delay: number;
+  t: TFunction;
   onClick: () => void;
 }) {
   const inv = currentInvoice(acc, transactions);
@@ -271,7 +280,7 @@ function CreditCardVisual({
       <div className="flex items-end justify-between">
         <div>
           <p className="text-[10px] uppercase tracking-wide text-white/75">
-            Fatura aberta
+            {t("acc.openInvoice")}
           </p>
           <p className="text-lg font-extrabold tabular">
             {formatMoney(fatura, acc.currency)}
@@ -280,7 +289,7 @@ function CreditCardVisual({
         {disponivel !== null && (
           <div className="text-right">
             <p className="text-[10px] uppercase tracking-wide text-white/75">
-              Disponível
+              {t("acc.available")}
             </p>
             <p className="text-lg font-extrabold tabular">
               {formatMoney(disponivel, acc.currency)}
@@ -297,19 +306,23 @@ function CreditCardVisual({
         </div>
       )}
       <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] text-white/80">
-        {inv && <span>vence {dayMonth(inv.dueDate)}</span>}
+        {inv && <span>{t("acc.dueOn", { date: dayMonth(inv.dueDate) })}</span>}
         {inv && <span>·</span>}
-        {inv && <span>melhor dia {nextDayMonth(inv.closeDate)}</span>}
+        {inv && (
+          <span>{t("acc.bestDay", { date: nextDayMonth(inv.closeDate) })}</span>
+        )}
         {limit ? (
           <>
             <span>·</span>
             <span>
-              limite {formatMoney(limit, acc.currency)}
-              {usagePct !== null ? ` (${usagePct}% usado)` : ""}
+              {t("acc.cardLimitLine", {
+                value: formatMoney(limit, acc.currency),
+              })}
+              {usagePct !== null ? t("acc.cardUsed", { pct: usagePct }) : ""}
             </span>
           </>
         ) : null}
-        {!inv && !limit && <span>defina fechamento, vencimento e limite ao editar</span>}
+        {!inv && !limit && <span>{t("acc.cardSetupHint")}</span>}
       </div>
     </button>
   );

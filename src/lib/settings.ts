@@ -4,7 +4,11 @@ import { db } from "@/db/schema";
 export interface AppSettings {
   baseCurrency: string;
   theme: "light" | "dark" | "system";
+  /** paleta de cores: "indigo" (padrão) | "emerald" | "ocean" | "violet" | "sunset" | "graphite". */
+  palette: string;
   locale: string;
+  /** idioma da interface: "pt" | "en" | "es". */
+  language: string;
   /** taxas de câmbio: quantas unidades da moeda BASE valem 1 unidade da moeda. Ex.: { USD: 5.4 } */
   rates: Record<string, number>;
 }
@@ -12,7 +16,9 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   baseCurrency: "BRL",
   theme: "system",
+  palette: "indigo",
   locale: "pt-BR",
+  language: "pt",
   rates: {},
 };
 
@@ -55,4 +61,11 @@ export function applyTheme(theme: AppSettings["theme"]) {
   const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   const dark = theme === "dark" || (theme === "system" && prefersDark);
   root.classList.toggle("dark", dark);
+}
+
+/** Aplica a paleta de cores (atributo `data-theme` no <html>). */
+export function applyPalette(palette: string) {
+  const root = document.documentElement;
+  if (!palette || palette === "indigo") root.removeAttribute("data-theme");
+  else root.setAttribute("data-theme", palette);
 }

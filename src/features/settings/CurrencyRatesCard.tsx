@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Card, Input, Label } from "@/components/ui/primitives";
 import { useAccounts } from "@/db/hooks";
 import { useSettings, setSetting } from "@/lib/settings";
@@ -9,6 +10,7 @@ import { useSettings, setSetting } from "@/lib/settings";
  * Usada no patrimônio consolidado do dashboard.
  */
 export function CurrencyRatesCard() {
+  const { t } = useTranslation();
   const accounts = useAccounts(true);
   const settings = useSettings();
 
@@ -31,16 +33,15 @@ export function CurrencyRatesCard() {
 
   return (
     <Card className="mb-4">
-      <h2 className="mb-1 text-base font-semibold">Câmbio</h2>
+      <h2 className="mb-1 text-base font-semibold">{t("fx.title")}</h2>
       <p className="mb-3 text-sm text-muted">
-        Quanto vale 1 unidade de cada moeda em {settings.baseCurrency}. Usado pra
-        consolidar o patrimônio.
+        {t("fx.desc", { base: settings.baseCurrency })}
       </p>
       <div className="space-y-2">
         {foreign.map((cur) => (
           <div key={cur} className="flex items-center gap-3">
             <Label className="mb-0 w-24">
-              1 {cur} = ({settings.baseCurrency})
+              {t("fx.rateLabel", { cur, base: settings.baseCurrency })}
             </Label>
             <Input
               inputMode="decimal"

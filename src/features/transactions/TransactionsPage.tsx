@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Plus, Search } from "lucide-react";
 import {
   useAccounts,
@@ -14,8 +15,10 @@ import { TransactionItem } from "./TransactionItem";
 import { TransactionForm } from "./TransactionForm";
 import type { Transaction } from "@/db/types";
 import { formatMoney } from "@/lib/money";
+import { formatDate } from "@/lib/format";
 
 export function TransactionsPage() {
+  const { t } = useTranslation();
   const accounts = useAccounts(true);
   const categoriesArr = useCategories();
   const [params] = useSearchParams();
@@ -83,6 +86,12 @@ export function TransactionsPage() {
 
   const grouped = useMemo(() => groupByDate(transactions), [transactions]);
 
+  function formatGroupDate(date: string): string {
+    const today = new Date().toISOString().slice(0, 10);
+    if (date === today) return t("tx.groupToday");
+    return formatDate(date, { weekday: "short", day: "2-digit", month: "short" });
+  }
+
   function openNew() {
     setEditing(undefined);
     setDuplicateFrom(undefined);
@@ -103,10 +112,10 @@ export function TransactionsPage() {
   return (
     <div>
       <PageHeader
-        title="Lançamentos"
+        title={t("tx.title")}
         action={
           <Button onClick={openNew}>
-            <Plus size={18} /> Novo
+            <Plus size={18} /> {t("tx.new")}
           </Button>
         }
       />
@@ -124,11 +133,14 @@ export function TransactionsPage() {
         >
           <span style={{ color: "#f59e0b" }}>↩</span>
           <span className="flex-1">
-            A receber (reembolsos): <b>{formatMoney(pendingReimbTotal)}</b>
-            <span className="text-muted"> · {pendingReimb.length} lanç.</span>
+            {t("tx.reimbToReceive")} <b>{formatMoney(pendingReimbTotal)}</b>
+            <span className="text-muted">
+              {" "}
+              · {t("tx.entriesShort", { count: pendingReimb.length })}
+            </span>
           </span>
           <span className="text-xs text-primary">
-            {onlyReimb ? "ver todos" : "ver pendentes"}
+            {onlyReimb ? t("tx.seeAll") : t("tx.seePending")}
           </span>
         </button>
       )}
@@ -144,7 +156,7 @@ export function TransactionsPage() {
             type="search"
             name="busca-lancamentos"
             autoComplete="off"
-            placeholder="Buscar por descrição ou tag…"
+            placeholder={t("tx.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -152,7 +164,7 @@ export function TransactionsPage() {
         </div>
         <div className="grid grid-cols-2 gap-2">
           <Select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-            <option value="">Todas as contas</option>
+            <option value="">{t("tx.allAccounts")}</option>
             {accounts.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
@@ -160,10 +172,10 @@ export function TransactionsPage() {
             ))}
           </Select>
           <Select value={kind} onChange={(e) => setKind(e.target.value)}>
-            <option value="">Todos os tipos</option>
-            <option value="expense">Despesas</option>
-            <option value="income">Receitas</option>
-            <option value="transfer">Transferências</option>
+            <option value="">{t("tx.allKinds")}</option>
+            <option value="expense">{t("tx.expenses")}</option>
+            <option value="income">{t("tx.incomes")}</option>
+            <option value="transfer">{t("tx.transfers")}</option>
           </Select>
         </div>
 
@@ -176,13 +188,13 @@ export function TransactionsPage() {
             className="flex-1"
             aria-label="De"
           />
-          <span className="text-sm text-muted">até</span>
+          <span className="text-sm text-muted">{t("tx.until")}</span>
           <Input
             type="date"
             value={to}
             onChange={(e) => setTo(e.target.value)}
             className="flex-1"
-            aria-label="Até"
+            aria-label={t("tx.until")}
           />
           {(from || to) && (
             <button
@@ -192,7 +204,7 @@ export function TransactionsPage() {
               }}
               className="rounded-lg px-2 py-1 text-xs text-muted hover:text-text"
             >
-              limpar
+              {t("common.clear")}
             </button>
           )}
         </div>
@@ -220,11 +232,11 @@ export function TransactionsPage() {
 
       {transactions.length === 0 ? (
         <EmptyState
-          title="Nenhum lançamento"
-          description="Registre sua primeira entrada ou saída para começar."
+          title={t("tx.emptyTitle")}
+          description={t("tx.emptyDesc")}
           action={
             <Button onClick={openNew}>
-              <Plus size={18} /> Novo lançamento
+              <Plus size={18} /> {t("tx.newEntry")}
             </Button>
           }
         />
@@ -294,13 +306,3 @@ function groupByDate(transactions: Transaction[]): DateGroup[] {
     });
 }
 
-function formatGroupDate(date: string): string {
-  const today = new Date().toISOString().slice(0, 10);
-  if (date === today) return "Hoje";
-  const d = new Date(date + "T00:00:00");
-  return d.toLocaleDateString("pt-BR", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-  });
-}

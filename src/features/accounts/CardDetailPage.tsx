@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   Pencil,
@@ -13,6 +14,7 @@ import {
 import { useAccount, useAllTransactions, useAccounts } from "@/db/hooks";
 import { invoiceSeries, type InvoiceMonth } from "@/lib/calc";
 import { formatMoney, parseMoney } from "@/lib/money";
+import { formatDayMonth } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { create } from "@/db/repo";
 import { celebrate } from "@/components/feedback/Feito";
@@ -34,13 +36,11 @@ import type { Account, Transaction } from "@/db/types";
 type ChartType = "line" | "bars" | "ring";
 
 function dayMonth(iso: string): string {
-  const d = new Date(iso + "T00:00:00");
-  return d
-    .toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
-    .replace(".", "");
+  return formatDayMonth(iso).replace(".", "");
 }
 
 export function CardDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const account = useAccount(id);
   const transactions = useAllTransactions();
@@ -107,7 +107,7 @@ export function CardDetailPage() {
     return (
       <div>
         <BackLink />
-        <EmptyState title="Conta não encontrada" />
+        <EmptyState title={t("acc.notFound")} />
       </div>
     );
   }
@@ -116,8 +116,8 @@ export function CardDetailPage() {
       <div>
         <BackLink />
         <EmptyState
-          title="Sem fatura"
-          description="Esta conta não é um cartão de crédito."
+          title={t("acc.noInvoiceTitle")}
+          description={t("acc.noInvoiceDesc")}
         />
       </div>
     );
@@ -138,17 +138,17 @@ export function CardDetailPage() {
           </span>
           <div>
             <h1 className="text-xl font-bold leading-tight">{account.name}</h1>
-            <p className="text-sm text-muted">Cartão de crédito</p>
+            <p className="text-sm text-muted">{t("acc.creditCard")}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={() => setNewTxOpen(true)}>
-            <Plus size={16} /> Lançar
+            <Plus size={16} /> {t("acc.post")}
           </Button>
           <button
             onClick={() => setEditOpen(true)}
             className="rounded-xl p-2 text-muted hover:bg-surface-2"
-            aria-label="Editar"
+            aria-label={t("common.edit")}
           >
             <Pencil size={18} />
           </button>
@@ -198,18 +198,25 @@ export function CardDetailPage() {
         {open && (
           <>
             <Row
-              label={<span className="font-bold text-primary">Fatura aberta</span>}
+              label={
+                <span className="font-bold text-primary">
+                  {t("acc.openInvoice")}
+                </span>
+              }
               value={
                 <span className="text-2xl font-extrabold tabular text-primary">
                   {formatMoney(open.totalCents, account.currency)}
                 </span>
               }
             />
-            <Row label="Melhor dia de compra" value={dayMonth(open.bestBuyDate)} />
-            <Row label="Vencimento" value={dayMonth(open.dueDate)} />
+            <Row
+              label={t("acc.bestBuyDay")}
+              value={dayMonth(open.bestBuyDate)}
+            />
+            <Row label={t("acc.dueDate")} value={dayMonth(open.dueDate)} />
             {account.creditLimitCents ? (
               <Row
-                label="Limite"
+                label={t("acc.limit")}
                 value={formatMoney(account.creditLimitCents, account.currency)}
               />
             ) : null}
@@ -220,12 +227,12 @@ export function CardDetailPage() {
                 <div className="mt-3 border-t border-border pt-3">
                   {open.totalCents === 0 && paidInCycle === 0 ? (
                     <p className="mb-3 text-center text-sm text-muted">
-                      Sem gastos nesta fatura.
+                      {t("acc.noSpend")}
                     </p>
                   ) : remaining > 0 ? (
                     <>
                       <Row
-                        label="A pagar"
+                        label={t("acc.toPay")}
                         value={
                           <span className="tabular font-bold text-expense">
                             {formatMoney(remaining, account.currency)}
@@ -234,18 +241,18 @@ export function CardDetailPage() {
                       />
                       {paidInCycle > 0 && (
                         <Row
-                          label="Já pago"
+                          label={t("acc.alreadyPaid")}
                           value={formatMoney(paidInCycle, account.currency)}
                         />
                       )}
                     </>
                   ) : remaining === 0 ? (
                     <div className="mb-3 flex items-center justify-center gap-2 text-sm font-semibold text-income">
-                      <CheckCircle2 size={18} /> Fatura paga
+                      <CheckCircle2 size={18} /> {t("acc.invoicePaid")}
                     </div>
                   ) : (
                     <Row
-                      label="Adiantado (crédito)"
+                      label={t("acc.advance")}
                       value={
                         <span className="tabular font-bold text-income">
                           {formatMoney(-remaining, account.currency)}
@@ -259,7 +266,7 @@ export function CardDetailPage() {
                     onClick={() => setPayOpen(true)}
                   >
                     <Wallet size={16} />{" "}
-                    {remaining > 0 ? "Pagar fatura" : "Pagar / adiantar"}
+                    {remaining > 0 ? t("acc.payInvoice") : t("acc.payOrAdvance")}
                   </Button>
                 </div>
               );
@@ -271,7 +278,7 @@ export function CardDetailPage() {
       {catBreakdown.length > 0 && (
         <Card className="mb-4">
           <h2 className="mb-3 text-sm font-semibold">
-            Gastos da fatura por categoria
+            {t("acc.spendByCategory")}
           </h2>
           {catBreakdown.map(({ cid, cents }, i) => {
             const cat = cid ? categories.find((c) => c.id === cid) : null;
@@ -285,7 +292,7 @@ export function CardDetailPage() {
                     size={30}
                   />
                   <span className="flex-1 text-sm">
-                    {cat?.name ?? "Sem categoria"}
+                    {cat?.name ?? t("acc.noCategory")}
                   </span>
                   <span className="tabular text-sm font-semibold">
                     {formatMoney(cents, account.currency)}
@@ -334,6 +341,7 @@ function PayInvoiceDialog({
   card: Account;
   amountDueCents: number;
 }) {
+  const { t } = useTranslation();
   const accounts = useAccounts(true);
   const sources = accounts.filter((a) => a.id !== card.id);
   const [amount, setAmount] = useState("");
@@ -355,11 +363,11 @@ function PayInvoiceDialog({
   async function handleSubmit() {
     const cents = parseMoney(amount);
     if (!cents || cents <= 0) {
-      setError("Informe um valor válido.");
+      setError(t("acc.errAmount"));
       return;
     }
     if (!fromAccount) {
-      setError("Escolha a conta de onde sai o pagamento.");
+      setError(t("acc.errFrom"));
       return;
     }
     const acc = accounts.find((a) => a.id === fromAccount);
@@ -371,20 +379,23 @@ function PayInvoiceDialog({
       amountCents: cents,
       currency: acc?.currency ?? card.currency,
       date: new Date().toISOString().slice(0, 10),
-      description: `Pagamento fatura ${card.name}`,
+      description: t("acc.payDesc", { name: card.name }),
       tags: ["fatura"],
       status: "cleared",
     });
     onOpenChange(false);
-    celebrate("coin", `Fatura paga · ${formatMoney(cents, card.currency)}`);
+    celebrate(
+      "coin",
+      t("acc.payCelebrate", { value: formatMoney(cents, card.currency) }),
+    );
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={`Pagar fatura · ${card.name}`}>
+      <DialogContent title={t("acc.payTitle", { name: card.name })}>
         <div className="space-y-4">
           <div>
-            <Label>Valor</Label>
+            <Label>{t("acc.amount")}</Label>
             <Input
               inputMode="decimal"
               placeholder="0,00"
@@ -395,7 +406,7 @@ function PayInvoiceDialog({
             />
           </div>
           <div>
-            <Label>Pagar com</Label>
+            <Label>{t("acc.payWith")}</Label>
             <AccountSelect
               value={fromAccount}
               onChange={setFromAccount}
@@ -406,9 +417,9 @@ function PayInvoiceDialog({
           {error && <p className="text-sm text-expense">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
+              {t("common.cancel")}
             </Button>
-            <Button onClick={handleSubmit}>Pagar</Button>
+            <Button onClick={handleSubmit}>{t("acc.pay")}</Button>
           </div>
         </div>
       </DialogContent>
@@ -417,12 +428,13 @@ function PayInvoiceDialog({
 }
 
 function BackLink() {
+  const { t } = useTranslation();
   return (
     <Link
       to="/accounts"
       className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-text"
     >
-      <ArrowLeft size={16} /> Contas
+      <ArrowLeft size={16} /> {t("acc.title")}
     </Link>
   );
 }
@@ -546,6 +558,7 @@ function RingChart({
   open?: InvoiceMonth;
   limit?: number;
 }) {
+  const { t } = useTranslation();
   const total = open?.totalCents ?? 0;
   const usage = limit && limit > 0 ? Math.min(total / limit, 1) : 0;
   const dash = usage * 100;
@@ -569,13 +582,15 @@ function RingChart({
         </svg>
         <div className="absolute inset-0 grid place-items-center text-center">
           <div>
-            <div className="text-[11px] text-muted">fatura aberta</div>
+            <div className="text-[11px] text-muted">
+              {t("acc.ringOpenInvoice")}
+            </div>
             <div className="text-base font-extrabold tabular">
               {formatMoney(total)}
             </div>
             {limit ? (
               <div className="mt-0.5 text-[10px] text-muted">
-                {Math.round(usage * 100)}% do limite
+                {t("acc.ofLimit", { pct: Math.round(usage * 100) })}
               </div>
             ) : null}
           </div>
