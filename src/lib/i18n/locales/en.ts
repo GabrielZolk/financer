@@ -36,6 +36,7 @@ export const en: Resources = {
     goals: "Goals",
     reports: "Reports",
     settings: "Settings",
+    more: "More",
   },
   sync: {
     title: "Cloud sync",

@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { useState } from "react";
+import { NavLink, Link, Outlet, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   LayoutDashboard,
@@ -8,6 +9,7 @@ import {
   Target,
   BarChart3,
   Settings,
+  MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,13 +28,19 @@ const NAV: { to: string; key: string; icon: LucideIcon; end?: boolean }[] = [
   { to: "/settings", key: "nav.settings", icon: Settings },
 ];
 
-// Itens prioritários na barra inferior (mobile)
-const MOBILE_NAV = NAV.filter((n) =>
-  ["/", "/transactions", "/accounts", "/reports"].includes(n.to),
-);
+// Abas fixas na barra inferior (mobile); o resto vai pro painel "Mais".
+const PRIMARY = ["/", "/transactions", "/accounts", "/reports"];
+const MOBILE_NAV = NAV.filter((n) => PRIMARY.includes(n.to));
+const MORE_NAV = NAV.filter((n) => !PRIMARY.includes(n.to));
 
 export function AppShell() {
   const { t } = useTranslation();
+  const location = useLocation();
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  // "Mais" fica ativo quando a rota atual é uma das telas do painel
+  const moreActive = MORE_NAV.some((n) => location.pathname === n.to);
+
   return (
     <div className="flex min-h-full bg-bg">
       {/* Sidebar (desktop) */}
@@ -79,17 +87,54 @@ export function AppShell() {
         </div>
       </main>
 
+      {/* Painel "Mais" (mobile) — bottom sheet */}
+      {moreOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
+          onClick={() => setMoreOpen(false)}
+        >
+          <div
+            className="absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-border bg-surface p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border" />
+            <div className="grid grid-cols-3 gap-2">
+              {MORE_NAV.map((item) => {
+                const active = location.pathname === item.to;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMoreOpen(false)}
+                    className={cn(
+                      "flex flex-col items-center gap-1.5 rounded-xl border py-4 text-xs font-medium transition-colors",
+                      active
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border text-muted hover:bg-surface-2 hover:text-text",
+                    )}
+                  >
+                    <item.icon size={22} />
+                    {t(item.key)}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Bottom nav (mobile) */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-surface/95 backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         {MOBILE_NAV.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.end}
+            onClick={() => setMoreOpen(false)}
             className={({ isActive }) =>
               cn(
                 "flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium",
-                isActive ? "text-primary" : "text-muted",
+                isActive && !moreOpen ? "text-primary" : "text-muted",
               )
             }
           >
@@ -97,6 +142,17 @@ export function AppShell() {
             {t(item.key)}
           </NavLink>
         ))}
+        <button
+          onClick={() => setMoreOpen((v) => !v)}
+          className={cn(
+            "flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium",
+            moreActive || moreOpen ? "text-primary" : "text-muted",
+          )}
+          aria-label={t("nav.more")}
+        >
+          <MoreHorizontal size={20} />
+          {t("nav.more")}
+        </button>
       </nav>
 
       <FeitoOverlay />

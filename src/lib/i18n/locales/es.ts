@@ -36,6 +36,7 @@ export const es: Resources = {
     goals: "Metas",
     reports: "Informes",
     settings: "Ajustes",
+    more: "Más",
   },
   sync: {
     title: "Sincronización en la nube",

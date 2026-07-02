@@ -34,6 +34,7 @@ export const pt = {
     goals: "Metas",
     reports: "Relatórios",
     settings: "Ajustes",
+    more: "Mais",
   },
   sync: {
     title: "Sincronização na nuvem",
