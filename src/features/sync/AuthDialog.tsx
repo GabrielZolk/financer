@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button, Input, Label } from "@/components/ui/primitives";
@@ -7,12 +7,23 @@ import { signIn, signUp, signInWithGoogle } from "@/lib/sync";
 export function AuthDialog({
   open,
   onOpenChange,
+  defaultMode = "in",
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  /** modo inicial ao abrir: "in" (entrar) ou "up" (criar conta) */
+  defaultMode?: "in" | "up";
 }) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<"in" | "up">("in");
+  const [mode, setMode] = useState<"in" | "up">(defaultMode);
+
+  useEffect(() => {
+    if (open) {
+      setMode(defaultMode);
+      setError("");
+      setInfo("");
+    }
+  }, [open, defaultMode]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);

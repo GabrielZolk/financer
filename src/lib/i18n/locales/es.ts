@@ -651,6 +651,14 @@ export const es: Resources = {
     desc: "Cuánto vale 1 unidad de cada moneda en {{base}}. Se usa para consolidar el patrimonio.",
     rateLabel: "1 {{cur}} = ({{base}})",
   },
+  welcome: {
+    tagline: "Tus finanzas, en tu dispositivo. Sin conexión y sincronizado.",
+    createAccount: "Crear cuenta",
+    signIn: "Entrar",
+    guest: "Continuar sin cuenta",
+    guestWarn:
+      "Sin cuenta, tus datos quedan solo en este dispositivo. Si limpias el navegador o cambias de móvil, se pierden — puedes crear una cuenta después y llevarlos contigo.",
+  },
   theme: {
     title: "Tema",
     subtitle: "Elige la paleta de colores.",

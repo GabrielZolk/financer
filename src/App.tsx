@@ -1,5 +1,6 @@
 import { createHashRouter, RouterProvider } from "react-router-dom";
 import { AppLockGate } from "@/features/applock/AppLockGate";
+import { WelcomeGate } from "@/features/welcome/WelcomeGate";
 import { AppShell } from "@/components/AppShell";
 import { DashboardPage } from "@/features/dashboard/DashboardPage";
 import { TransactionsPage } from "@/features/transactions/TransactionsPage";
@@ -39,7 +40,9 @@ const router = createHashRouter([
 export default function App() {
   return (
     <AppLockGate>
-      <RouterProvider router={router} />
+      <WelcomeGate>
+        <RouterProvider router={router} />
+      </WelcomeGate>
     </AppLockGate>
   );
 }

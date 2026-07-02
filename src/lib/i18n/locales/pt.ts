@@ -653,6 +653,14 @@ export const pt = {
     desc: "Quanto vale 1 unidade de cada moeda em {{base}}. Usado pra consolidar o patrimônio.",
     rateLabel: "1 {{cur}} = ({{base}})",
   },
+  welcome: {
+    tagline: "Suas finanças, no seu aparelho. Offline e sincronizado.",
+    createAccount: "Criar conta",
+    signIn: "Entrar",
+    guest: "Continuar sem conta",
+    guestWarn:
+      "Sem conta, seus dados ficam só neste aparelho. Se limpar o navegador ou trocar de celular, eles se perdem — e você pode criar uma conta depois pra levá-los junto.",
+  },
   theme: {
     title: "Tema",
     subtitle: "Escolha a paleta de cores.",

@@ -649,6 +649,14 @@ export const en: Resources = {
     desc: "How much 1 unit of each currency is worth in {{base}}. Used to consolidate net worth.",
     rateLabel: "1 {{cur}} = ({{base}})",
   },
+  welcome: {
+    tagline: "Your finances, on your device. Offline and synced.",
+    createAccount: "Create account",
+    signIn: "Sign in",
+    guest: "Continue without an account",
+    guestWarn:
+      "Without an account, your data lives only on this device. If you clear the browser or switch phones, it's gone — you can create an account later and take it with you.",
+  },
   theme: {
     title: "Theme",
     subtitle: "Choose the color palette.",
