@@ -19,6 +19,7 @@ import { useSettings, setSetting, applyTheme } from "@/lib/settings";
 import {
   downloadBackup,
   downloadCsv,
+  downloadXlsx,
   importBackup,
   type BackupFile,
 } from "@/lib/backup";
@@ -28,6 +29,7 @@ import { ImportDialog } from "@/features/import/ImportDialog";
 import { CurrencyRatesCard } from "./CurrencyRatesCard";
 import { LanguageCard } from "./LanguageCard";
 import { ThemeCard } from "./ThemeCard";
+import { DangerZoneCard } from "./DangerZoneCard";
 
 const THEMES = [
   { value: "system", labelKey: "settings.themeSystem", icon: Monitor },
@@ -178,6 +180,9 @@ export function SettingsPage() {
         <h2 className="mb-1 text-base font-semibold">{t("settings.backup")}</h2>
         <p className="mb-3 text-sm text-muted">{t("settings.backupDesc")}</p>
         <div className="flex flex-wrap gap-2">
+          <Button onClick={() => void downloadXlsx()}>
+            <FileSpreadsheet size={16} /> {t("settings.backupExcel")}
+          </Button>
           <Button variant="outline" onClick={downloadBackup}>
             <Download size={16} /> {t("settings.backupJson")}
           </Button>
@@ -202,6 +207,11 @@ export function SettingsPage() {
 
       {/* Sync */}
       <SyncCard />
+
+      {/* Zona de perigo */}
+      <div className="mt-4">
+        <DangerZoneCard />
+      </div>
 
       {/* Legal */}
       <div className="mt-4 flex justify-center gap-4 text-xs text-muted">

@@ -5,8 +5,8 @@ import { Card } from "@/components/ui/primitives";
 import { PageHeader } from "@/components/PageHeader";
 import { formatDate } from "@/lib/format";
 
-const UPDATED_ISO = "2026-06-26";
-const CONTACT = "gabriel.zolk@znap.com.br";
+const UPDATED_ISO = "2026-07-12";
+const CONTACT = "zolkapp.dev@gmail.com";
 
 function H({ children }: { children: string }) {
   return <h2 className="mt-5 text-base font-semibold">{children}</h2>;

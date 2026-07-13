@@ -8,7 +8,7 @@ import { getCurrentUserId } from "@/db/repo";
 import { uid, nowIso } from "@/lib/utils";
 import { celebrate } from "@/components/feedback/Feito";
 
-const FEEDBACK_EMAIL = "gabriel.zolk@znap.com.br";
+const FEEDBACK_EMAIL = "zolkapp.dev@gmail.com";
 const LAST_KEY = "fin.lastFeedback"; // device-local
 const COOLDOWN_DAYS = 30;
 
