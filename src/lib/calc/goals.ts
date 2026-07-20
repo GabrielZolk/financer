@@ -21,6 +21,7 @@ export function goalPotes(goal: Goal): string[] {
  */
 export function goalSaved(goal: Goal, balances: Map<string, Cents>): Cents {
   const potes = goalPotes(goal);
-  if (!potes.length) return goal.savedCents;
-  return potes.reduce((s, id) => s + (balances.get(id) ?? 0), 0);
+  const potesSum = potes.reduce((s, id) => s + (balances.get(id) ?? 0), 0);
+  // saldo das contas vinculadas (cofrinho) + o que foi "só anotado"
+  return potesSum + goal.savedCents;
 }

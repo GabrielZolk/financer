@@ -427,7 +427,16 @@ export const es: Resources = {
       "Sin bote: la meta solo sigue el progreso (el dinero se queda donde está). Vincula un bote solo si quieres mover el dinero fuera de la cuenta.",
     trapWarn:
       "{{name}} es una cuenta del día a día. Usarla como bote hace que lo guardado siga todo su saldo — normalmente quieres un bote de ahorro separado.",
-    alreadySaved: "Ya guardado",
+    alreadySaved: "Ya guardado (opcional)",
+    alreadySavedHint:
+      "Cuánto ya tienes reservado hoy. Luego solo usa “Guardar”.",
+    fromAccount: "De qué cuenta sale",
+    justNote: "Solo anotar (no tocar las cuentas)",
+    justNoteHint:
+      "Marca si ya tienes el dinero y solo quieres registrar el progreso.",
+    cofrinhoName: "Alcancía · {{name}}",
+    contributions: "Últimos guardados",
+    contribFrom: "de {{name}}",
     color: "Color",
     errNameTarget: "Introduce nombre y valor objetivo.",
     confirmDelete: "esta meta",

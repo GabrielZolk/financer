@@ -1,10 +1,14 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "./schema";
-import type { Account, Category, Transaction } from "./types";
+import type { Account, Category, Goal, Transaction } from "./types";
 import { usePrivacy, mergeForTotals, isListed } from "@/lib/privacy";
 
 const notDeleted = <T extends { deleted: 0 | 1 }>(arr: T[]) =>
   arr.filter((x) => x.deleted === 0);
+
+export function useGoals(): Goal[] {
+  return useLiveQuery(async () => notDeleted(await db.goals.toArray()), [], []);
+}
 
 export function useAccounts(includeArchived = false): Account[] {
   return useLiveQuery(

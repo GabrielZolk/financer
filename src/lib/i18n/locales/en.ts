@@ -425,7 +425,15 @@ export const en: Resources = {
       "No pot: the goal only tracks progress (the money stays where it is). Link a pot only if you want to move money out of the account.",
     trapWarn:
       "{{name}} is a day-to-day account. Using it as a pot makes the saved amount follow its whole balance — you usually want a separate savings pot.",
-    alreadySaved: "Already saved",
+    alreadySaved: "Already saved (optional)",
+    alreadySavedHint: "How much you already have set aside. Then just use “Save”.",
+    fromAccount: "From which account",
+    justNote: "Just track (don't touch accounts)",
+    justNoteHint:
+      "Check if you already have the money and only want to record progress.",
+    cofrinhoName: "Piggy bank · {{name}}",
+    contributions: "Recent saves",
+    contribFrom: "from {{name}}",
     color: "Color",
     errNameTarget: "Enter a name and target amount.",
     confirmDelete: "this goal",

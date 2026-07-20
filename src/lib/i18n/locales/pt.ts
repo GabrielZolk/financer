@@ -428,7 +428,16 @@ export const pt = {
       "Sem pote: a meta só acompanha o progresso (o dinheiro fica onde está). Vincule um cofrinho só se quiser mover o dinheiro pra fora da conta.",
     trapWarn:
       "{{name}} é uma conta do dia a dia. Usá-la como pote faz o guardado seguir o saldo dela toda — geralmente você quer um cofrinho/poupança separado.",
-    alreadySaved: "Já guardado",
+    alreadySaved: "Já guardado (opcional)",
+    alreadySavedHint:
+      "Quanto você já tem reservado hoje. Depois é só usar “Guardar”.",
+    fromAccount: "De qual conta sai",
+    justNote: "Só anotar (não mexer nas contas)",
+    justNoteHint:
+      "Marque se o dinheiro já está com você e você só quer registrar o progresso.",
+    cofrinhoName: "Cofrinho · {{name}}",
+    contributions: "Últimas guardadas",
+    contribFrom: "de {{name}}",
     color: "Cor",
     errNameTarget: "Informe nome e valor-alvo.",
     confirmDelete: "esta meta",

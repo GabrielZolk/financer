@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useTranslation } from "react-i18next";
-import { Plus, Target, Trash2, PiggyBank, Check, Pencil, X } from "lucide-react";
+import { Plus, Target, Trash2, PiggyBank, Check, Pencil } from "lucide-react";
 import { db } from "@/db/schema";
 import { create, update, softDelete } from "@/db/repo";
 import { useAccounts, useAllTransactions } from "@/db/hooks";
@@ -18,7 +18,6 @@ import {
   Label,
 } from "@/components/ui/primitives";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { AccountForm } from "@/features/accounts/AccountForm";
 import { AccountSelect } from "@/features/accounts/AccountSelect";
 import { PageHeader } from "@/components/PageHeader";
 import { celebrate } from "@/components/feedback/Feito";
@@ -88,9 +87,10 @@ export function GoalsPage() {
             const saved = goalSaved(goal, balances);
             const ratio = goal.targetCents > 0 ? saved / goal.targetCents : 0;
             const done = saved >= goal.targetCents;
-            const potes = goalPotes(goal)
-              .map((id) => accountMap.get(id)?.name)
-              .filter(Boolean) as string[];
+            const contribs = transactions
+              .filter((tx) => tx.goalId === goal.id && tx.deleted === 0)
+              .sort((a, b) => b.date.localeCompare(a.date))
+              .slice(0, 3);
             return (
               <Card
                 key={goal.id}
@@ -141,13 +141,29 @@ export function GoalsPage() {
                     })}
                   </span>
                 </div>
+                {contribs.length > 0 && (
+                  <div className="mt-3 border-t border-border pt-2">
+                    <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
+                      {t("goals.contributions")}
+                    </p>
+                    {contribs.map((c) => (
+                      <div key={c.id} className="flex justify-between text-xs">
+                        <span className="truncate text-muted">
+                          {formatDate(c.date)} ·{" "}
+                          {t("goals.contribFrom", {
+                            name: accountMap.get(c.accountId)?.name ?? "—",
+                          })}
+                        </span>
+                        <span className="tabular text-income">
+                          +{formatMoney(c.amountCents)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="mt-3 flex items-center justify-between gap-2">
                   <div className="min-w-0 text-xs text-muted">
-                    {potes.length > 0 ? (
-                      <span className="truncate">
-                        🐷 {potes.join(" + ")}
-                      </span>
-                    ) : goal.deadline ? (
+                    {goal.deadline ? (
                       <span>
                         {t("goals.untilDate", {
                           date: formatDate(goal.deadline),
@@ -198,31 +214,40 @@ function AporteDialog({
   const accounts = useAccounts(true);
   const [amount, setAmount] = useState("");
   const [fromAccount, setFromAccount] = useState("");
-  const [toPote, setToPote] = useState("");
+  const [justNote, setJustNote] = useState(false);
   const [error, setError] = useState("");
 
-  const potes = useMemo(() => (goal ? goalPotes(goal) : []), [goal]);
+  const sources = accounts.filter((a) => a.type !== "credit_card");
 
   useEffect(() => {
     if (!goal) return;
     setAmount("");
     setError("");
-    const firstPote = potes[0] ?? "";
-    setToPote(firstPote);
-    // origem padrão: 1ª conta que NÃO é pote (sua conta do dia a dia)
-    const src =
-      accounts.find((a) => !potes.includes(a.id)) ??
-      accounts.find((a) => a.id !== firstPote);
-    setFromAccount(src?.id ?? "");
+    setJustNote(false);
+    setFromAccount(sources[0]?.id ?? "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goal]);
 
   if (!goal) return null;
 
-  const hasPotes = potes.length > 0;
-  const poteAccounts = potes
-    .map((id) => accounts.find((a) => a.id === id))
-    .filter(Boolean) as Account[];
+  // garante um cofrinho (conta poupança) pra meta — criado só quando o usuário
+  // move dinheiro de verdade. Reaproveita conta já vinculada, se houver.
+  async function ensureCofrinho(): Promise<string> {
+    const potes = goalPotes(goal!);
+    if (potes.length) return potes[0];
+    const created = await create<Account>("accounts", {
+      name: t("goals.cofrinhoName", { name: goal!.name }),
+      type: "savings",
+      currency: "BRL",
+      initialBalanceCents: 0,
+      color: goal!.color,
+      icon: "piggy-bank",
+      archived: 0,
+      order: Date.now(),
+    });
+    await update<Goal>("goals", goal!.id, { accountIds: [created.id] });
+    return created.id;
+  }
 
   async function handleSubmit() {
     const cents = parseMoney(amount);
@@ -231,19 +256,25 @@ function AporteDialog({
       return;
     }
 
-    if (hasPotes) {
-      if (!toPote) {
-        setError(t("goals.errPote"));
+    if (justNote) {
+      // só anotar: sobe o número, sem mexer nas contas
+      await update<Goal>("goals", goal!.id, {
+        savedCents: goal!.savedCents + cents,
+      });
+    } else {
+      if (!fromAccount) {
+        setError(t("goals.errFrom"));
         return;
       }
-      if (!fromAccount || fromAccount === toPote) {
+      const cofre = await ensureCofrinho();
+      if (fromAccount === cofre) {
         setError(t("goals.errFromDiff"));
         return;
       }
       const acc = accounts.find((a) => a.id === fromAccount);
       await create<Transaction>("transactions", {
         accountId: fromAccount,
-        toAccountId: toPote,
+        toAccountId: cofre,
         categoryId: null,
         kind: "transfer",
         amountCents: cents,
@@ -254,13 +285,10 @@ function AporteDialog({
         status: "cleared",
         goalId: goal!.id,
       });
-      // progresso é calculado pela soma dos potes — não mexe em savedCents
-    } else {
-      // modo "só acompanhar": ajusta o número manual
-      await update<Goal>("goals", goal!.id, { savedCents: saved + cents });
     }
 
-    const reached = saved < goal!.targetCents && saved + cents >= goal!.targetCents;
+    const reached =
+      saved < goal!.targetCents && saved + cents >= goal!.targetCents;
     onClose();
     celebrate(
       reached ? "confetti" : "coin",
@@ -286,38 +314,31 @@ function AporteDialog({
             />
           </div>
 
-          {hasPotes ? (
-            <>
-              <div>
-                <Label>{t("goals.fromWhich")}</Label>
-                <AccountSelect
-                  value={fromAccount}
-                  onChange={setFromAccount}
-                  accounts={accounts}
-                  exclude={toPote || undefined}
-                />
-              </div>
-              {poteAccounts.length > 1 ? (
-                <div>
-                  <Label>{t("goals.toWhichPote")}</Label>
-                  <AccountSelect
-                    value={toPote}
-                    onChange={setToPote}
-                    accounts={poteAccounts}
-                    defaultType="savings"
-                  />
-                </div>
-              ) : (
-                <p className="text-xs text-muted">
-                  {t("goals.goesToPote", {
-                    name: poteAccounts[0]?.name ?? "—",
-                  })}
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="text-xs text-muted">{t("goals.trackOnlyHint")}</p>
+          {!justNote && (
+            <div>
+              <Label>{t("goals.fromAccount")}</Label>
+              <AccountSelect
+                value={fromAccount}
+                onChange={setFromAccount}
+                accounts={sources}
+              />
+            </div>
           )}
+
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-border p-3">
+            <input
+              type="checkbox"
+              checked={justNote}
+              onChange={(e) => setJustNote(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-primary"
+            />
+            <span>
+              <span className="text-sm font-medium">{t("goals.justNote")}</span>
+              <span className="block text-xs text-muted">
+                {t("goals.justNoteHint")}
+              </span>
+            </span>
+          </label>
 
           {error && <p className="text-sm text-expense">{error}</p>}
 
@@ -345,15 +366,12 @@ function GoalForm({
   editing?: Goal;
 }) {
   const { t } = useTranslation();
-  const accounts = useAccounts(true);
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
   const [saved, setSaved] = useState("");
   const [deadline, setDeadline] = useState("");
-  const [potes, setPotes] = useState<string[]>([]);
   const [color, setColor] = useState(COLORS[0]);
   const [error, setError] = useState("");
-  const [acctFormOpen, setAcctFormOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -362,29 +380,16 @@ function GoalForm({
       setTarget((editing.targetCents / 100).toString().replace(".", ","));
       setSaved((editing.savedCents / 100).toString().replace(".", ","));
       setDeadline(editing.deadline ?? "");
-      setPotes(goalPotes(editing));
       setColor(editing.color);
     } else {
       setName("");
       setTarget("");
       setSaved("");
       setDeadline("");
-      setPotes([]);
       setColor(COLORS[0]);
     }
     setError("");
   }, [open, editing]);
-
-  function togglePote(id: string) {
-    setPotes((arr) =>
-      arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id],
-    );
-  }
-
-  const hasPotes = potes.length > 0;
-  const trapPote = accounts.find(
-    (a) => potes.includes(a.id) && (a.type === "checking" || a.type === "cash"),
-  );
 
   async function handleSubmit() {
     const targetCents = parseMoney(target);
@@ -395,11 +400,11 @@ function GoalForm({
     const data = {
       name: name.trim(),
       targetCents,
-      // com potes o progresso é calculado; o número manual só vale sem potes
-      savedCents: hasPotes ? 0 : (parseMoney(saved) ?? 0),
+      savedCents: parseMoney(saved) ?? 0,
       deadline: deadline || null,
       accountId: null,
-      accountIds: potes,
+      // preserva o cofrinho já vinculado ao editar; novas metas começam sem
+      accountIds: editing ? goalPotes(editing) : [],
       color,
       archived: 0 as const,
     };
@@ -444,64 +449,20 @@ function GoalForm({
             </div>
           </div>
 
-          {/* Potes da meta (onde o dinheiro fica) */}
+          {/* Já guardado (opcional) — o quanto você já tem reservado hoje */}
           <div>
-            <Label>{t("goals.potes")}</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {accounts.map((a) => {
-                const on = potes.includes(a.id);
-                return (
-                  <button
-                    key={a.id}
-                    type="button"
-                    onClick={() => togglePote(a.id)}
-                    className={
-                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors " +
-                      (on
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border text-muted hover:text-text")
-                    }
-                  >
-                    <span
-                      className="h-2 w-2 rounded-full"
-                      style={{ background: a.color }}
-                    />
-                    {a.name}
-                    {on && <X size={12} />}
-                  </button>
-                );
-              })}
-              <button
-                type="button"
-                onClick={() => setAcctFormOpen(true)}
-                className="rounded-full border border-dashed border-border px-3 py-1.5 text-xs font-medium text-primary hover:bg-surface-2"
-              >
-                {t("goals.newAccount")}
-              </button>
-            </div>
+            <Label>{t("goals.alreadySaved")}</Label>
+            <Input
+              inputMode="decimal"
+              placeholder="0,00"
+              value={saved}
+              onChange={(e) => setSaved(e.target.value)}
+              className="tabular"
+            />
             <p className="mt-1.5 text-xs text-muted">
-              {hasPotes ? t("goals.potesHintOn") : t("goals.potesHintOff")}
+              {t("goals.alreadySavedHint")}
             </p>
-            {trapPote && (
-              <p className="mt-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-300">
-                ⚠️ {t("goals.trapWarn", { name: trapPote.name })}
-              </p>
-            )}
           </div>
-
-          {/* Já guardado: só no modo "sem pote" (número manual) */}
-          {!hasPotes && (
-            <div>
-              <Label>{t("goals.alreadySaved")}</Label>
-              <Input
-                inputMode="decimal"
-                placeholder="0,00"
-                value={saved}
-                onChange={(e) => setSaved(e.target.value)}
-                className="tabular"
-              />
-            </div>
-          )}
 
           <div>
             <Label>{t("goals.color")}</Label>
@@ -546,14 +507,6 @@ function GoalForm({
             </div>
           </div>
         </div>
-
-        {/* criar um pote (conta) na hora */}
-        <AccountForm
-          open={acctFormOpen}
-          onOpenChange={setAcctFormOpen}
-          defaultType="savings"
-          onCreated={(acc) => setPotes((arr) => [...arr, acc.id])}
-        />
       </DialogContent>
     </Dialog>
   );

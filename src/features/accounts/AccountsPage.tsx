@@ -11,7 +11,7 @@ import {
   TrendingUp,
   Lock,
 } from "lucide-react";
-import { useAccounts, useAllTransactions } from "@/db/hooks";
+import { useAccounts, useAllTransactions, useGoals } from "@/db/hooks";
 import { balancesByAccount, currentInvoice, effectiveLimit } from "@/lib/calc";
 import { formatMoney, formatSigned, parseMoney } from "@/lib/money";
 import { formatDayMonth } from "@/lib/format";
@@ -62,14 +62,19 @@ export function AccountsPage() {
   const [depositGarantia, setDepositGarantia] = useState<Account | undefined>();
 
   const cards = accounts.filter((a) => a.type === "credit_card");
-  // contas-lastro de limite garantido vivem "dentro" do cartão — some da lista
-  const securedIds = new Set(
-    cards
+  const goals = useGoals();
+  // contas internas (garantia de cartão / cofrinho de meta) vivem "dentro" do
+  // cartão ou da meta — não poluem a lista de Contas
+  const hiddenIds = new Set<string>([
+    ...cards
       .map((c) => c.securedByAccountId)
       .filter((id): id is string => !!id),
-  );
+    ...goals.flatMap((g) =>
+      g.accountIds?.length ? g.accountIds : g.accountId ? [g.accountId] : [],
+    ),
+  ]);
   const contas = accounts.filter(
-    (a) => a.type !== "credit_card" && !securedIds.has(a.id),
+    (a) => a.type !== "credit_card" && !hiddenIds.has(a.id),
   );
 
   // patrimônio líquido = contas + saldo dos cartões (negativo = dívida),
