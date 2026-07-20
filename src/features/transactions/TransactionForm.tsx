@@ -101,6 +101,7 @@ export function TransactionForm({
   editing,
   duplicateFrom,
   defaultAccountId,
+  defaultKind,
   onDuplicate,
 }: {
   open: boolean;
@@ -109,6 +110,8 @@ export function TransactionForm({
   /** prefilla os campos como um lançamento NOVO (duplicar) */
   duplicateFrom?: Transaction;
   defaultAccountId?: string;
+  /** tipo inicial ao abrir um lançamento novo (despesa/receita/transferência) */
+  defaultKind?: TransactionKind;
   /** pede ao pai pra reabrir o form duplicando este lançamento */
   onDuplicate?: (tx: Transaction) => void;
 }) {
@@ -255,7 +258,7 @@ export function TransactionForm({
         setSplits([]);
       }
     } else {
-      setKind("expense");
+      setKind(defaultKind ?? "expense");
       setAmount("");
       setAccountId(defaultAccountId ?? accounts[0]?.id ?? "");
       setToAccountId("");
@@ -294,7 +297,7 @@ export function TransactionForm({
     }
     setError("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, editing, duplicateFrom]);
+  }, [open, editing, duplicateFrom, defaultKind]);
 
   // garante uma conta selecionada quando elas carregam (respeita defaultAccountId)
   useEffect(() => {

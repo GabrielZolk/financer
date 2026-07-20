@@ -662,6 +662,14 @@ export const en: Resources = {
     split: "Split",
     noCategory: "No category",
   },
+  qa: {
+    title: "What do you want to do?",
+    expense: "Add expense",
+    income: "Add income",
+    transfer: "Transfer between accounts",
+    payCard: "Pay card",
+    saveGoal: "Save to a goal",
+  },
   danger: {
     title: "Danger zone",
     desc: "Permanently erases all your data. This can't be undone.",

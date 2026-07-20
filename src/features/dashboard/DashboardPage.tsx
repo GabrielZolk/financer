@@ -21,7 +21,7 @@ import { Button, Card } from "@/components/ui/primitives";
 import { Sparkline } from "@/components/ui/Sparkline";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { PageHeader } from "@/components/PageHeader";
-import { TransactionForm } from "@/features/transactions/TransactionForm";
+import { QuickActions } from "./QuickActions";
 import { TransactionItem } from "@/features/transactions/TransactionItem";
 
 function shiftMonth(month: string, delta: number): string {
@@ -390,7 +390,7 @@ export function DashboardPage() {
         </Card>
       )}
 
-      <TransactionForm open={formOpen} onOpenChange={setFormOpen} />
+      <QuickActions open={formOpen} onOpenChange={setFormOpen} />
     </div>
   );
 }

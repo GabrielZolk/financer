@@ -666,6 +666,14 @@ export const pt = {
     split: "Dividido",
     noCategory: "Sem categoria",
   },
+  qa: {
+    title: "O que você quer fazer?",
+    expense: "Registrar despesa",
+    income: "Registrar receita",
+    transfer: "Transferir entre contas",
+    payCard: "Pagar cartão",
+    saveGoal: "Guardar numa meta",
+  },
   danger: {
     title: "Zona de perigo",
     desc: "Apaga permanentemente todos os seus dados. Não dá pra desfazer.",

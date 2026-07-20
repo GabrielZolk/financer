@@ -665,6 +665,14 @@ export const es: Resources = {
     split: "Dividido",
     noCategory: "Sin categoría",
   },
+  qa: {
+    title: "¿Qué quieres hacer?",
+    expense: "Registrar gasto",
+    income: "Registrar ingreso",
+    transfer: "Transferir entre cuentas",
+    payCard: "Pagar tarjeta",
+    saveGoal: "Guardar en una meta",
+  },
   danger: {
     title: "Zona de peligro",
     desc: "Borra permanentemente todos tus datos. No se puede deshacer.",
