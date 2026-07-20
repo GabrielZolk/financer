@@ -10,6 +10,7 @@ import {
   PieChart as PieIcon,
   CheckCircle2,
   Wallet,
+  Lock,
 } from "lucide-react";
 import { useAccount, useAllTransactions, useAccounts } from "@/db/hooks";
 import {
@@ -22,7 +23,7 @@ import {
 import { formatMoney, parseMoney } from "@/lib/money";
 import { formatDayMonth } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { create } from "@/db/repo";
+import { create, update } from "@/db/repo";
 import { celebrate } from "@/components/feedback/Feito";
 import {
   Button,
@@ -54,24 +55,27 @@ export function CardDetailPage() {
   const [chart, setChart] = useState<ChartType>("line");
 
   // limite efetivo = base + garantia (limite garantido)
-  const { effLimit, securedBal, securedName } = useMemo(() => {
-    if (!account) return { effLimit: 0, securedBal: 0, securedName: "" };
-    const sec = account.securedByAccountId
-      ? (balancesByAccount(allAccounts, transactions).get(
-          account.securedByAccountId,
-        ) ?? 0)
+  const { effLimit, securedBal, securedAccount } = useMemo(() => {
+    if (!account)
+      return { effLimit: 0, securedBal: 0, securedAccount: undefined };
+    const backing = account.securedByAccountId
+      ? allAccounts.find((a) => a.id === account.securedByAccountId)
+      : undefined;
+    const sec = backing
+      ? (balancesByAccount(allAccounts, transactions).get(backing.id) ?? 0)
       : 0;
-    const name =
-      allAccounts.find((a) => a.id === account.securedByAccountId)?.name ?? "";
     return {
       effLimit: effectiveLimit(account, sec),
       securedBal: Math.max(sec, 0),
-      securedName: name,
+      securedAccount: backing,
     };
   }, [account, allAccounts, transactions]);
   const [editOpen, setEditOpen] = useState(false);
   const [payMonth, setPayMonth] = useState<InvoiceMonth | undefined>();
   const [newTxOpen, setNewTxOpen] = useState(false);
+  const [securedDlg, setSecuredDlg] = useState<
+    { mode: "add" | "withdraw"; backing: Account } | undefined
+  >();
 
   const { months, openIndex } = useMemo(
     () => (account ? invoiceSeries(account, transactions) : { months: [], openIndex: -1 }),
@@ -144,6 +148,27 @@ export function CardDetailPage() {
   }
 
   const open = months[openIndex];
+
+  // cria (e vincula) uma conta-lastro escondida na 1ª vez que o usuário adiciona
+  // limite garantido — ele nunca precisa criar conta manualmente.
+  async function ensureBacking(): Promise<Account> {
+    const existing = securedAccount;
+    if (existing) return existing;
+    const created = await create<Account>("accounts", {
+      name: t("acc.securedAccountName", { card: account!.name }),
+      type: "savings",
+      currency: account!.currency,
+      initialBalanceCents: 0,
+      color: account!.color,
+      icon: "lock",
+      archived: 0,
+      order: Date.now(),
+    });
+    await update<Account>("accounts", account!.id, {
+      securedByAccountId: created.id,
+    });
+    return created;
+  }
 
   return (
     <div>
@@ -247,7 +272,6 @@ export function CardDetailPage() {
                         🔒 {t("acc.securedPart", {
                           value: formatMoney(securedBal, account.currency),
                         })}
-                        {securedName ? ` · ${securedName}` : ""}
                       </span>
                     )}
                   </span>
@@ -320,6 +344,58 @@ export function CardDetailPage() {
         )}
       </Card>
 
+      {/* Limite garantido — ação direta, sem criar conta */}
+      <Card className="mb-4">
+        <div className="mb-1 flex items-center gap-2">
+          <Lock size={16} className="text-income" />
+          <h2 className="text-base font-semibold">{t("acc.securedSection")}</h2>
+        </div>
+        {securedAccount ? (
+          <>
+            <p className="text-2xl font-extrabold tabular">
+              {formatMoney(securedBal, account.currency)}
+            </p>
+            <p className="mb-3 text-xs text-muted">
+              {t("acc.securedSectionHint")}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={() =>
+                  setSecuredDlg({ mode: "add", backing: securedAccount })
+                }
+              >
+                <Plus size={15} /> {t("acc.securedAdd")}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  setSecuredDlg({ mode: "withdraw", backing: securedAccount })
+                }
+              >
+                {t("acc.securedWithdraw")}
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="mb-3 text-sm text-muted">
+              {t("acc.securedSectionEmpty")}
+            </p>
+            <Button
+              size="sm"
+              onClick={async () => {
+                const b = await ensureBacking();
+                setSecuredDlg({ mode: "add", backing: b });
+              }}
+            >
+              <Lock size={15} /> {t("acc.securedAddFirst")}
+            </Button>
+          </>
+        )}
+      </Card>
+
       {catBreakdown.length > 0 && (
         <Card className="mb-4">
           <h2 className="mb-3 text-sm font-semibold">
@@ -364,6 +440,12 @@ export function CardDetailPage() {
         card={account}
         transactions={transactions}
         onClose={() => setPayMonth(undefined)}
+      />
+      <SecuredDialog
+        dlg={securedDlg}
+        card={account}
+        accounts={allAccounts}
+        onClose={() => setSecuredDlg(undefined)}
       />
       <AccountForm open={editOpen} onOpenChange={setEditOpen} editing={account} />
       <TransactionForm
@@ -487,6 +569,119 @@ function PayInvoiceDialog({
               {t("common.cancel")}
             </Button>
             <Button onClick={handleSubmit}>{t("acc.pay")}</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SecuredDialog({
+  dlg,
+  card,
+  accounts,
+  onClose,
+}: {
+  dlg?: { mode: "add" | "withdraw"; backing: Account };
+  card: Account;
+  accounts: Account[];
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const [amount, setAmount] = useState("");
+  const [other, setOther] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!dlg) return;
+    setAmount("");
+    setError("");
+    setOther(
+      accounts.find(
+        (a) => a.id !== dlg.backing.id && a.type !== "credit_card",
+      )?.id ?? "",
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dlg]);
+
+  if (!dlg) return null;
+  const isAdd = dlg.mode === "add";
+
+  async function handleSubmit() {
+    const cents = parseMoney(amount);
+    if (!cents || cents <= 0) {
+      setError(t("acc.errAmount"));
+      return;
+    }
+    if (!other || other === dlg!.backing.id) {
+      setError(t("acc.errFrom"));
+      return;
+    }
+    const from = isAdd ? other : dlg!.backing.id;
+    const to = isAdd ? dlg!.backing.id : other;
+    const src = accounts.find((a) => a.id === from);
+    await create<Transaction>("transactions", {
+      accountId: from,
+      toAccountId: to,
+      categoryId: null,
+      kind: "transfer",
+      amountCents: cents,
+      currency: src?.currency ?? card.currency,
+      date: new Date().toISOString().slice(0, 10),
+      description: isAdd
+        ? t("acc.securedAddDesc", { name: card.name })
+        : t("acc.securedWithdrawDesc", { name: card.name }),
+      tags: ["garantia"],
+      status: "cleared",
+    });
+    onClose();
+    celebrate(
+      "coin",
+      isAdd
+        ? t("acc.securedAddedMsg", { value: formatMoney(cents, card.currency) })
+        : t("acc.securedWithdrawnMsg", {
+            value: formatMoney(cents, card.currency),
+          }),
+    );
+  }
+
+  return (
+    <Dialog open={!!dlg} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent
+        title={isAdd ? t("acc.securedAddTitle") : t("acc.securedWithdrawTitle")}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-muted">
+            {isAdd ? t("acc.securedAddHint") : t("acc.securedWithdrawHint")}
+          </p>
+          <div>
+            <Label>{t("acc.amount")}</Label>
+            <Input
+              inputMode="decimal"
+              placeholder="0,00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="text-lg font-semibold tabular"
+              autoFocus
+            />
+          </div>
+          <div>
+            <Label>{isAdd ? t("acc.securedFrom") : t("acc.securedTo")}</Label>
+            <AccountSelect
+              value={other}
+              onChange={setOther}
+              accounts={accounts.filter((a) => a.type !== "credit_card")}
+              exclude={dlg.backing.id}
+            />
+          </div>
+          {error && <p className="text-sm text-expense">{error}</p>}
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="outline" onClick={onClose}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={handleSubmit}>
+              {isAdd ? t("acc.securedAdd") : t("acc.securedWithdraw")}
+            </Button>
           </div>
         </div>
       </DialogContent>

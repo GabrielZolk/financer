@@ -286,6 +286,27 @@ export const en: Resources = {
     securedRowSub: "{{name}} → becomes limit",
     securedBase: "Base {{value}}",
     securedPart: "Secured {{value}}",
+    securedSection: "Secured limit",
+    securedSectionHint:
+      "This money is yours (counts in net worth) and also becomes this card's limit.",
+    securedSectionEmpty:
+      "Set aside money that becomes this card's limit — without leaving your net worth.",
+    securedAdd: "Add",
+    securedWithdraw: "Withdraw",
+    securedAddFirst: "Add secured limit",
+    securedAccountName: "Collateral · {{card}}",
+    securedAddTitle: "Add to secured limit",
+    securedWithdrawTitle: "Withdraw from secured limit",
+    securedAddHint:
+      "Set aside an amount from one of your accounts — the card limit rises immediately.",
+    securedWithdrawHint:
+      "Return part of the collateral to an account — the card limit goes down.",
+    securedFrom: "From which account",
+    securedTo: "To which account",
+    securedAddDesc: "Secured limit: {{name}}",
+    securedWithdrawDesc: "Collateral withdrawal: {{name}}",
+    securedAddedMsg: "Added {{value}} to secured limit",
+    securedWithdrawnMsg: "Withdrew {{value}} from collateral",
     deposit: "Deposit",
     depositTitle: 'Deposit into "{{name}}"',
     depositHint:

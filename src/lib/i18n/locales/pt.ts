@@ -287,6 +287,27 @@ export const pt = {
     securedRowSub: "{{name}} → vira limite",
     securedBase: "Base {{value}}",
     securedPart: "Garantido {{value}}",
+    securedSection: "Limite garantido",
+    securedSectionHint:
+      "Esse dinheiro é seu (entra no patrimônio) e também vira limite deste cartão.",
+    securedSectionEmpty:
+      "Reserve um dinheiro que vira limite deste cartão — sem sair do seu patrimônio.",
+    securedAdd: "Adicionar",
+    securedWithdraw: "Resgatar",
+    securedAddFirst: "Adicionar limite garantido",
+    securedAccountName: "Garantia · {{card}}",
+    securedAddTitle: "Adicionar ao limite garantido",
+    securedWithdrawTitle: "Resgatar do limite garantido",
+    securedAddHint:
+      "Reserva um valor de uma conta sua — o limite do cartão sobe na hora.",
+    securedWithdrawHint:
+      "Devolve parte da garantia para uma conta — o limite do cartão diminui.",
+    securedFrom: "Tirar de qual conta",
+    securedTo: "Mandar para qual conta",
+    securedAddDesc: "Limite garantido: {{name}}",
+    securedWithdrawDesc: "Resgate da garantia: {{name}}",
+    securedAddedMsg: "Adicionado {{value}} ao limite garantido",
+    securedWithdrawnMsg: "Resgatado {{value}} da garantia",
     deposit: "Depositar",
     depositTitle: 'Depositar em "{{name}}"',
     depositHint:

@@ -288,6 +288,27 @@ export const es: Resources = {
     securedRowSub: "{{name}} → se vuelve límite",
     securedBase: "Base {{value}}",
     securedPart: "Garantizado {{value}}",
+    securedSection: "Límite garantizado",
+    securedSectionHint:
+      "Ese dinero es tuyo (entra en el patrimonio) y también se vuelve límite de esta tarjeta.",
+    securedSectionEmpty:
+      "Reserva dinero que se vuelve límite de esta tarjeta — sin salir de tu patrimonio.",
+    securedAdd: "Agregar",
+    securedWithdraw: "Retirar",
+    securedAddFirst: "Agregar límite garantizado",
+    securedAccountName: "Garantía · {{card}}",
+    securedAddTitle: "Agregar al límite garantizado",
+    securedWithdrawTitle: "Retirar del límite garantizado",
+    securedAddHint:
+      "Reserva un monto de una cuenta tuya — el límite de la tarjeta sube al instante.",
+    securedWithdrawHint:
+      "Devuelve parte de la garantía a una cuenta — el límite de la tarjeta baja.",
+    securedFrom: "Sacar de qué cuenta",
+    securedTo: "Enviar a qué cuenta",
+    securedAddDesc: "Límite garantizado: {{name}}",
+    securedWithdrawDesc: "Retiro de garantía: {{name}}",
+    securedAddedMsg: "Agregado {{value}} al límite garantizado",
+    securedWithdrawnMsg: "Retirado {{value}} de la garantía",
     deposit: "Depositar",
     depositTitle: 'Depositar en "{{name}}"',
     depositHint:

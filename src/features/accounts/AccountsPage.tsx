@@ -61,8 +61,16 @@ export function AccountsPage() {
   const [editing, setEditing] = useState<Account | undefined>();
   const [depositGarantia, setDepositGarantia] = useState<Account | undefined>();
 
-  const contas = accounts.filter((a) => a.type !== "credit_card");
   const cards = accounts.filter((a) => a.type === "credit_card");
+  // contas-lastro de limite garantido vivem "dentro" do cartão — some da lista
+  const securedIds = new Set(
+    cards
+      .map((c) => c.securedByAccountId)
+      .filter((id): id is string => !!id),
+  );
+  const contas = accounts.filter(
+    (a) => a.type !== "credit_card" && !securedIds.has(a.id),
+  );
 
   // patrimônio líquido = contas + saldo dos cartões (negativo = dívida),
   // convertendo cada conta pra moeda base pela cotação
