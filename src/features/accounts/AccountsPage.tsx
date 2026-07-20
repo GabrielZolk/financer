@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -9,15 +9,20 @@ import {
   Landmark,
   PiggyBank,
   TrendingUp,
+  Lock,
 } from "lucide-react";
 import { useAccounts, useAllTransactions } from "@/db/hooks";
-import { balancesByAccount, currentInvoice } from "@/lib/calc";
-import { formatMoney, formatSigned } from "@/lib/money";
+import { balancesByAccount, currentInvoice, effectiveLimit } from "@/lib/calc";
+import { formatMoney, formatSigned, parseMoney } from "@/lib/money";
 import { formatDayMonth } from "@/lib/format";
 import { useSettings, makeRateFn } from "@/lib/settings";
-import { Button, Card, EmptyState } from "@/components/ui/primitives";
+import { create } from "@/db/repo";
+import { Button, Card, EmptyState, Input, Label } from "@/components/ui/primitives";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/PageHeader";
+import { celebrate } from "@/components/feedback/Feito";
 import { AccountForm } from "./AccountForm";
+import { AccountSelect } from "./AccountSelect";
 import type { Account, AccountType, Transaction } from "@/db/types";
 
 const ICONS: Record<AccountType, typeof Wallet> = {
@@ -54,6 +59,7 @@ export function AccountsPage() {
   const navigate = useNavigate();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Account | undefined>();
+  const [depositGarantia, setDepositGarantia] = useState<Account | undefined>();
 
   const contas = accounts.filter((a) => a.type !== "credit_card");
   const cards = accounts.filter((a) => a.type === "credit_card");
@@ -160,16 +166,50 @@ export function AccountsPage() {
             <>
               <SectionLabel>{t("acc.sectionCards")}</SectionLabel>
               <div className="space-y-3">
-                {cards.map((acc, i) => (
-                  <CreditCardVisual
-                    key={acc.id}
-                    acc={acc}
-                    transactions={transactions}
-                    delay={i}
-                    t={t}
-                    onClick={() => navigate(`/cards/${acc.id}`)}
-                  />
-                ))}
+                {cards.map((acc, i) => {
+                  const garantia = acc.securedByAccountId
+                    ? accounts.find((a) => a.id === acc.securedByAccountId)
+                    : undefined;
+                  const securedBalance = garantia
+                    ? (balances.get(garantia.id) ?? 0)
+                    : 0;
+                  return (
+                    <div key={acc.id}>
+                      <CreditCardVisual
+                        acc={acc}
+                        transactions={transactions}
+                        securedBalance={securedBalance}
+                        delay={i}
+                        t={t}
+                        onClick={() => navigate(`/cards/${acc.id}`)}
+                      />
+                      {garantia && (
+                        <div className="-mt-1 flex items-center gap-2.5 rounded-b-xl border border-t-0 border-border bg-surface px-3.5 py-2.5">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-income/15 text-income">
+                            <Lock size={16} />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium">
+                              {t("acc.securedRow", {
+                                value: formatMoney(securedBalance, acc.currency),
+                              })}
+                            </p>
+                            <p className="truncate text-xs text-muted">
+                              {t("acc.securedRowSub", { name: garantia.name })}
+                            </p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDepositGarantia(garantia)}
+                          >
+                            {t("acc.deposit")}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}
@@ -182,7 +222,107 @@ export function AccountsPage() {
         editing={editing}
         currentBalance={editing ? balances.get(editing.id) : undefined}
       />
+      <SecuredDepositDialog
+        garantia={depositGarantia}
+        accounts={accounts}
+        t={t}
+        onClose={() => setDepositGarantia(undefined)}
+      />
     </div>
+  );
+}
+
+/* -------------------- Depósito na garantia (limite garantido) ------------- */
+function SecuredDepositDialog({
+  garantia,
+  accounts,
+  t,
+  onClose,
+}: {
+  garantia?: Account;
+  accounts: Account[];
+  t: TFunction;
+  onClose: () => void;
+}) {
+  const [amount, setAmount] = useState("");
+  const [fromAccount, setFromAccount] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!garantia) return;
+    setAmount("");
+    setError("");
+    const src = accounts.find(
+      (a) => a.id !== garantia.id && a.type !== "credit_card",
+    );
+    setFromAccount(src?.id ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [garantia]);
+
+  if (!garantia) return null;
+
+  async function handleSubmit() {
+    const cents = parseMoney(amount);
+    if (!cents || cents <= 0) {
+      setError(t("acc.errDepositAmount"));
+      return;
+    }
+    if (!fromAccount || fromAccount === garantia!.id) {
+      setError(t("acc.errDepositFrom"));
+      return;
+    }
+    const src = accounts.find((a) => a.id === fromAccount);
+    await create<Transaction>("transactions", {
+      accountId: fromAccount,
+      toAccountId: garantia!.id,
+      categoryId: null,
+      kind: "transfer",
+      amountCents: cents,
+      currency: src?.currency ?? garantia!.currency,
+      date: new Date().toISOString().slice(0, 10),
+      description: t("acc.depositEntry", { name: garantia!.name }),
+      tags: ["garantia"],
+      status: "cleared",
+    });
+    onClose();
+    celebrate("coin", t("acc.depositDone", { value: formatMoney(cents) }));
+  }
+
+  return (
+    <Dialog open={!!garantia} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent title={t("acc.depositTitle", { name: garantia.name })}>
+        <div className="space-y-4">
+          <p className="text-sm text-muted">{t("acc.depositHint")}</p>
+          <div>
+            <Label>{t("acc.depositAmount")}</Label>
+            <Input
+              inputMode="decimal"
+              placeholder="0,00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="text-lg font-semibold tabular"
+              autoFocus
+            />
+          </div>
+          <div>
+            <Label>{t("acc.depositFrom")}</Label>
+            <AccountSelect
+              value={fromAccount}
+              onChange={setFromAccount}
+              accounts={accounts.filter((a) => a.type !== "credit_card")}
+              exclude={garantia.id}
+            />
+          </div>
+          {error && <p className="text-sm text-expense">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={handleSubmit}>{t("acc.deposit")}</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -239,21 +379,26 @@ function AccountCard({
 function CreditCardVisual({
   acc,
   transactions,
+  securedBalance,
   delay,
   t,
   onClick,
 }: {
   acc: Account;
   transactions: Transaction[];
+  securedBalance: number;
   delay: number;
   t: TFunction;
   onClick: () => void;
 }) {
   const inv = currentInvoice(acc, transactions);
   const fatura = inv?.totalCents ?? 0;
-  const limit = acc.creditLimitCents ?? 0;
+  const base = acc.creditLimitCents ?? 0;
+  const secured = Math.max(securedBalance, 0);
+  const limit = effectiveLimit(acc, securedBalance); // base + garantia
   const disponivel = limit ? Math.max(limit - fatura, 0) : null;
   const usagePct = limit ? Math.min(Math.round((fatura / limit) * 100), 100) : null;
+  const securedPct = limit ? Math.round((secured / limit) * 100) : 0;
   const last4 = acc.cardLast4 || "••••";
 
   return (
@@ -303,6 +448,30 @@ function CreditCardVisual({
             className="h-full rounded-full bg-white/90"
             style={{ width: `${usagePct}%` }}
           />
+        </div>
+      )}
+      {secured > 0 && limit > 0 && (
+        <div className="mt-2">
+          <div className="flex h-1.5 overflow-hidden rounded-full bg-black/25">
+            <div
+              className="h-full bg-white/55"
+              style={{ width: `${100 - securedPct}%` }}
+            />
+            <div
+              className="h-full bg-emerald-300"
+              style={{ width: `${securedPct}%` }}
+            />
+          </div>
+          <div className="mt-1 flex flex-wrap gap-x-3 text-[10.5px] text-white/85">
+            <span>
+              <span className="mr-1 inline-block h-2 w-2 rounded-sm bg-white/55 align-middle" />
+              {t("acc.securedBase", { value: formatMoney(base, acc.currency) })}
+            </span>
+            <span>
+              <span className="mr-1 inline-block h-2 w-2 rounded-sm bg-emerald-300 align-middle" />
+              🔒 {t("acc.securedPart", { value: formatMoney(secured, acc.currency) })}
+            </span>
+          </div>
         </div>
       )}
       <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] text-white/80">

@@ -12,7 +12,12 @@ import {
   Wallet,
 } from "lucide-react";
 import { useAccount, useAllTransactions, useAccounts } from "@/db/hooks";
-import { invoiceSeries, type InvoiceMonth } from "@/lib/calc";
+import {
+  invoiceSeries,
+  effectiveLimit,
+  balancesByAccount,
+  type InvoiceMonth,
+} from "@/lib/calc";
 import { formatMoney, parseMoney } from "@/lib/money";
 import { formatDayMonth } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -44,7 +49,25 @@ export function CardDetailPage() {
   const { id } = useParams();
   const account = useAccount(id);
   const transactions = useAllTransactions();
+  const allAccounts = useAccounts(true);
   const [chart, setChart] = useState<ChartType>("line");
+
+  // limite efetivo = base + garantia (limite garantido)
+  const { effLimit, securedBal, securedName } = useMemo(() => {
+    if (!account) return { effLimit: 0, securedBal: 0, securedName: "" };
+    const sec = account.securedByAccountId
+      ? (balancesByAccount(allAccounts, transactions).get(
+          account.securedByAccountId,
+        ) ?? 0)
+      : 0;
+    const name =
+      allAccounts.find((a) => a.id === account.securedByAccountId)?.name ?? "";
+    return {
+      effLimit: effectiveLimit(account, sec),
+      securedBal: Math.max(sec, 0),
+      securedName: name,
+    };
+  }, [account, allAccounts, transactions]);
   const [editOpen, setEditOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [newTxOpen, setNewTxOpen] = useState(false);
@@ -190,7 +213,7 @@ export function CardDetailPage() {
           <BarsChart months={months} openIndex={openIndex} />
         )}
         {chart === "ring" && (
-          <RingChart open={open} limit={account.creditLimitCents} />
+          <RingChart open={open} limit={effLimit || undefined} />
         )}
 
         <div className="my-4 h-px bg-border" />
@@ -214,10 +237,24 @@ export function CardDetailPage() {
               value={dayMonth(open.bestBuyDate)}
             />
             <Row label={t("acc.dueDate")} value={dayMonth(open.dueDate)} />
-            {account.creditLimitCents ? (
+            {effLimit ? (
               <Row
                 label={t("acc.limit")}
-                value={formatMoney(account.creditLimitCents, account.currency)}
+                value={
+                  <span className="text-right">
+                    <span className="tabular">
+                      {formatMoney(effLimit, account.currency)}
+                    </span>
+                    {securedBal > 0 && (
+                      <span className="block text-xs font-normal text-muted">
+                        🔒 {t("acc.securedPart", {
+                          value: formatMoney(securedBal, account.currency),
+                        })}
+                        {securedName ? ` · ${securedName}` : ""}
+                      </span>
+                    )}
+                  </span>
+                }
               />
             ) : null}
 

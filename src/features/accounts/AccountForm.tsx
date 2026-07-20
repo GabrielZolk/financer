@@ -5,6 +5,7 @@ import { Button, Input, Label, Select } from "@/components/ui/primitives";
 import { parseMoney, formatMoney } from "@/lib/money";
 import { confirmDelete } from "@/lib/utils";
 import { create, update, softDelete } from "@/db/repo";
+import { useAccounts } from "@/db/hooks";
 import type { Account, AccountType, Transaction } from "@/db/types";
 import { Trash2, Scale } from "lucide-react";
 
@@ -46,6 +47,7 @@ export function AccountForm({
   onCreated?: (acc: Account) => void;
 }) {
   const { t } = useTranslation();
+  const accounts = useAccounts(true);
   const [name, setName] = useState("");
   const [type, setType] = useState<AccountType>(defaultType);
   const [currency, setCurrency] = useState("BRL");
@@ -55,6 +57,7 @@ export function AccountForm({
   const [dueDay, setDueDay] = useState("10");
   const [limit, setLimit] = useState("");
   const [last4, setLast4] = useState("");
+  const [securedBy, setSecuredBy] = useState("");
   const [adjustReal, setAdjustReal] = useState("");
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [error, setError] = useState("");
@@ -75,6 +78,7 @@ export function AccountForm({
           : "",
       );
       setLast4(editing.cardLast4 ?? "");
+      setSecuredBy(editing.securedByAccountId ?? "");
     } else {
       setName("");
       setType(defaultType);
@@ -85,6 +89,7 @@ export function AccountForm({
       setDueDay("10");
       setLimit("");
       setLast4("");
+      setSecuredBy("");
     }
     setAdjustOpen(false);
     setAdjustReal("");
@@ -138,6 +143,7 @@ export function AccountForm({
       cardLast4: isCard
         ? last4.replace(/\D/g, "").slice(-4) || undefined
         : undefined,
+      securedByAccountId: isCard ? securedBy || null : null,
     };
     if (editing) {
       await update<Account>("accounts", editing.id, data);
@@ -258,6 +264,30 @@ export function AccountForm({
                 onChange={(e) => setLast4(e.target.value.replace(/\D/g, ""))}
                 className="tabular"
               />
+            </div>
+          )}
+
+          {type === "credit_card" && (
+            <div>
+              <Label>{t("acc.securedBy")}</Label>
+              <Select
+                value={securedBy}
+                onChange={(e) => setSecuredBy(e.target.value)}
+              >
+                <option value="">{t("acc.securedNone")}</option>
+                {accounts
+                  .filter(
+                    (a) => a.type !== "credit_card" && a.id !== editing?.id,
+                  )
+                  .map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+              </Select>
+              <p className="mt-1 text-xs text-muted">
+                {t("acc.securedHint")}
+              </p>
             </div>
           )}
 

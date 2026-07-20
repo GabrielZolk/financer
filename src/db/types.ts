@@ -40,6 +40,12 @@ export interface Account extends SyncFields {
   dueDay?: number;
   /** últimos 4 dígitos (só decoração no cartão estilizado) */
   cardLast4?: string;
+  /**
+   * Limite garantido: id de uma conta (garantia/caução) cujo saldo é somado ao
+   * limite disponível deste cartão. O dinheiro continua sendo do usuário
+   * (conta a parte, entra no patrimônio) e também vira limite usável.
+   */
+  securedByAccountId?: string | null;
 }
 
 export type CategoryKind = "income" | "expense";

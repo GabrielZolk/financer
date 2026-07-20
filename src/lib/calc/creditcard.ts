@@ -12,6 +12,18 @@ import type { Account, Transaction } from "@/db/types";
 import type { Cents } from "@/lib/money";
 import { getActiveLocale } from "@/lib/i18n/config";
 
+/**
+ * Limite efetivo do cartão = limite base + saldo da garantia (limite garantido).
+ * `securedBalanceCents` é o saldo atual da conta-garantia (0 se não houver).
+ * Nunca subtrai (garantia negativa não reduz o limite).
+ */
+export function effectiveLimit(
+  account: Account,
+  securedBalanceCents = 0,
+): Cents {
+  return (account.creditLimitCents ?? 0) + Math.max(securedBalanceCents, 0);
+}
+
 /** Retorna uma data no mês de `base` com o dia pedido, limitado ao fim do mês. */
 function dateWithDay(base: Date, day: number): Date {
   const last = endOfMonth(base);
