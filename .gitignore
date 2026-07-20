@@ -26,6 +26,7 @@ playwright/.cache
 # internos (repo público) — não publicar
 docs/LANCAMENTO.md
 docs/ia-roadmap.md
+docs/auditoria-praticidade.md
 .claude/
 iniciar-financeiro.bat
 

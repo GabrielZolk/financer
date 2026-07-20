@@ -99,6 +99,30 @@ export interface InvoiceMonth {
   bestBuyDate: string;
 }
 
+/**
+ * Quanto já foi pago de uma fatura específica. Um pagamento é uma transferência
+ * PARA o cartão; pode estar marcado com `paysInvoiceMonth` (novo, explícito) ou,
+ * pra dados antigos, é atribuído pela data cair dentro do ciclo da fatura.
+ */
+export function invoicePaid(
+  account: Account,
+  transactions: Transaction[],
+  month: Pick<InvoiceMonth, "ym" | "cycleStart" | "closeDate">,
+): Cents {
+  let paid = 0;
+  for (const tx of transactions) {
+    if (tx.deleted || tx.status === "pending") continue;
+    if (tx.kind !== "transfer" || tx.toAccountId !== account.id) continue;
+    if (tx.paysInvoiceMonth) {
+      if (tx.paysInvoiceMonth === month.ym) paid += tx.amountCents;
+    } else if (tx.date >= month.cycleStart && tx.date <= month.closeDate) {
+      // legado: pagamento sem marca, atribuído pelo ciclo em que caiu
+      paid += tx.amountCents;
+    }
+  }
+  return paid;
+}
+
 function buildInvoice(
   account: Account,
   transactions: Transaction[],
@@ -154,7 +178,7 @@ export function invoiceSeries(
   const openClose =
     t <= closeThis ? closeThis : dateWithDay(addMonths(t, 1), statementDay);
 
-  const offsets = [-1, 0, 1, 2];
+  const offsets = [-3, -2, -1, 0, 1, 2];
   const months = offsets.map((o) =>
     buildInvoice(
       account,
@@ -162,5 +186,5 @@ export function invoiceSeries(
       dateWithDay(addMonths(openClose, o), statementDay),
     ),
   );
-  return { months, openIndex: 1 };
+  return { months, openIndex: offsets.indexOf(0) };
 }

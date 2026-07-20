@@ -14,6 +14,7 @@ import {
 import { useAccount, useAllTransactions, useAccounts } from "@/db/hooks";
 import {
   invoiceSeries,
+  invoicePaid,
   effectiveLimit,
   balancesByAccount,
   type InvoiceMonth,
@@ -69,7 +70,7 @@ export function CardDetailPage() {
     };
   }, [account, allAccounts, transactions]);
   const [editOpen, setEditOpen] = useState(false);
-  const [payOpen, setPayOpen] = useState(false);
+  const [payMonth, setPayMonth] = useState<InvoiceMonth | undefined>();
   const [newTxOpen, setNewTxOpen] = useState(false);
 
   const { months, openIndex } = useMemo(
@@ -77,21 +78,17 @@ export function CardDetailPage() {
     [account, transactions],
   );
 
-  // quanto já foi pago na fatura aberta (transferências PARA o cartão no ciclo)
-  const paidInCycle = useMemo(() => {
-    const open = months[openIndex];
-    if (!account || !open) return 0;
-    return transactions
+  // faturas pagáveis: do passado até a aberta, que tiveram gasto (mais nova primeiro)
+  const payable = useMemo(() => {
+    if (!account) return [] as InvoiceMonth[];
+    return months
+      .slice(0, openIndex + 1)
       .filter(
-        (t) =>
-          !t.deleted &&
-          t.status !== "pending" &&
-          t.kind === "transfer" &&
-          t.toAccountId === account.id &&
-          t.date >= open.cycleStart &&
-          t.date <= open.closeDate,
+        (m) =>
+          m.totalCents > 0 ||
+          invoicePaid(account, transactions, m) > 0,
       )
-      .reduce((s, t) => s + t.amountCents, 0);
+      .reverse();
   }, [account, transactions, months, openIndex]);
 
   // gastos da fatura aberta por categoria (atribui itens da divisão à sua categoria)
@@ -258,57 +255,68 @@ export function CardDetailPage() {
               />
             ) : null}
 
-            {(() => {
-              const remaining = open.totalCents - paidInCycle;
+          </>
+        )}
+      </Card>
+
+      {/* Faturas — pagar escolhendo o mês */}
+      <Card className="mb-4">
+        <h2 className="mb-3 text-base font-semibold">{t("acc.invoices")}</h2>
+        {payable.length === 0 ? (
+          <p className="text-sm text-muted">{t("acc.noInvoicesYet")}</p>
+        ) : (
+          <div className="space-y-2">
+            {payable.map((m) => {
+              const paid = invoicePaid(account, transactions, m);
+              const remaining = Math.max(m.totalCents - paid, 0);
+              const isOpen = m.ym === open?.ym;
+              const settled = m.totalCents > 0 && remaining === 0;
               return (
-                <div className="mt-3 border-t border-border pt-3">
-                  {open.totalCents === 0 && paidInCycle === 0 ? (
-                    <p className="mb-3 text-center text-sm text-muted">
-                      {t("acc.noSpend")}
-                    </p>
-                  ) : remaining > 0 ? (
-                    <>
-                      <Row
-                        label={t("acc.toPay")}
-                        value={
-                          <span className="tabular font-bold text-expense">
-                            {formatMoney(remaining, account.currency)}
-                          </span>
-                        }
-                      />
-                      {paidInCycle > 0 && (
-                        <Row
-                          label={t("acc.alreadyPaid")}
-                          value={formatMoney(paidInCycle, account.currency)}
-                        />
-                      )}
-                    </>
-                  ) : remaining === 0 ? (
-                    <div className="mb-3 flex items-center justify-center gap-2 text-sm font-semibold text-income">
-                      <CheckCircle2 size={18} /> {t("acc.invoicePaid")}
-                    </div>
-                  ) : (
-                    <Row
-                      label={t("acc.advance")}
-                      value={
-                        <span className="tabular font-bold text-income">
-                          {formatMoney(-remaining, account.currency)}
+                <div
+                  key={m.ym}
+                  className="flex items-center gap-3 rounded-xl border border-border p-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">
+                      <span className="capitalize">{m.monthLabel}</span>{" "}
+                      {m.ym.slice(0, 4)}
+                      {isOpen && (
+                        <span className="ml-1.5 text-xs font-normal text-primary">
+                          · {t("acc.openLabel")}
                         </span>
-                      }
-                    />
+                      )}
+                    </p>
+                    <p className="text-xs text-muted">
+                      {formatMoney(m.totalCents, account.currency)} ·{" "}
+                      {settled ? (
+                        <span className="text-income">{t("acc.settled")}</span>
+                      ) : (
+                        <span className="text-expense">
+                          {t("acc.toPayN", {
+                            value: formatMoney(remaining, account.currency),
+                          })}
+                        </span>
+                      )}{" "}
+                      · {t("acc.dueShort", { date: dayMonth(m.dueDate) })}
+                    </p>
+                  </div>
+                  {settled ? (
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-medium text-income">
+                      <CheckCircle2 size={15} /> {t("acc.paidShort")}
+                    </span>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant={isOpen ? "primary" : "outline"}
+                      onClick={() => setPayMonth(m)}
+                    >
+                      <Wallet size={15} /> {t("acc.pay")}
+                    </Button>
                   )}
-                  <Button
-                    className="mt-3 w-full"
-                    variant={remaining > 0 ? "primary" : "outline"}
-                    onClick={() => setPayOpen(true)}
-                  >
-                    <Wallet size={16} />{" "}
-                    {remaining > 0 ? t("acc.payInvoice") : t("acc.payOrAdvance")}
-                  </Button>
                 </div>
               );
-            })()}
-          </>
+            })}
+          </div>
         )}
       </Card>
 
@@ -352,10 +360,10 @@ export function CardDetailPage() {
       )}
 
       <PayInvoiceDialog
-        open={payOpen}
-        onOpenChange={setPayOpen}
+        month={payMonth}
         card={account}
-        amountDueCents={open ? open.totalCents - paidInCycle : 0}
+        transactions={transactions}
+        onClose={() => setPayMonth(undefined)}
       />
       <AccountForm open={editOpen} onOpenChange={setEditOpen} editing={account} />
       <TransactionForm
@@ -368,34 +376,39 @@ export function CardDetailPage() {
 }
 
 function PayInvoiceDialog({
-  open,
-  onOpenChange,
+  month,
   card,
-  amountDueCents,
+  transactions,
+  onClose,
 }: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
+  month?: InvoiceMonth;
   card: Account;
-  amountDueCents: number;
+  transactions: Transaction[];
+  onClose: () => void;
 }) {
   const { t } = useTranslation();
   const accounts = useAccounts(true);
-  const sources = accounts.filter((a) => a.id !== card.id);
   const [amount, setAmount] = useState("");
   const [fromAccount, setFromAccount] = useState("");
+  const [date, setDate] = useState("");
   const [error, setError] = useState("");
 
+  const remaining = month
+    ? Math.max(month.totalCents - invoicePaid(card, transactions, month), 0)
+    : 0;
+
   useEffect(() => {
-    if (!open) return;
+    if (!month) return;
     setAmount(
-      amountDueCents > 0
-        ? (amountDueCents / 100).toString().replace(".", ",")
-        : "",
+      remaining > 0 ? (remaining / 100).toString().replace(".", ",") : "",
     );
-    setFromAccount(sources[0]?.id ?? "");
+    setFromAccount(accounts.find((a) => a.id !== card.id)?.id ?? "");
+    setDate(new Date().toISOString().slice(0, 10));
     setError("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [month]);
+
+  if (!month) return null;
 
   async function handleSubmit() {
     const cents = parseMoney(amount);
@@ -415,12 +428,16 @@ function PayInvoiceDialog({
       kind: "transfer",
       amountCents: cents,
       currency: acc?.currency ?? card.currency,
-      date: new Date().toISOString().slice(0, 10),
-      description: t("acc.payDesc", { name: card.name }),
+      date: date || new Date().toISOString().slice(0, 10),
+      description: t("acc.payDescMonth", {
+        name: card.name,
+        month: month!.monthLabel,
+      }),
       tags: ["fatura"],
       status: "cleared",
+      paysInvoiceMonth: month!.ym,
     });
-    onOpenChange(false);
+    onClose();
     celebrate(
       "coin",
       t("acc.payCelebrate", { value: formatMoney(cents, card.currency) }),
@@ -428,8 +445,13 @@ function PayInvoiceDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={t("acc.payTitle", { name: card.name })}>
+    <Dialog open={!!month} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent
+        title={t("acc.payMonthTitle", {
+          name: card.name,
+          month: month.monthLabel,
+        })}
+      >
         <div className="space-y-4">
           <div>
             <Label>{t("acc.amount")}</Label>
@@ -451,9 +473,17 @@ function PayInvoiceDialog({
               exclude={card.id}
             />
           </div>
+          <div>
+            <Label>{t("acc.payDate")}</Label>
+            <Input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </div>
           {error && <p className="text-sm text-expense">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={onClose}>
               {t("common.cancel")}
             </Button>
             <Button onClick={handleSubmit}>{t("acc.pay")}</Button>

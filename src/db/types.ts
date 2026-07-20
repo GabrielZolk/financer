@@ -105,6 +105,8 @@ export interface Transaction extends SyncFields {
   transferPairId?: string | null;
   /** quando é aporte de meta, liga à meta (permite migrar se a conta mudar) */
   goalId?: string | null;
+  /** transferência que paga uma fatura de cartão específica (YYYY-MM do fechamento) */
+  paysInvoiceMonth?: string | null;
   /** despesa que será reembolsada (ex.: gasto da empresa que sai da sua conta) */
   reimbursable?: 0 | 1;
   /** já recebeu o reembolso (some dos "pendentes a receber") */
