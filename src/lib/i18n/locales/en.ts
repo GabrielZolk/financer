@@ -107,6 +107,8 @@ export const en: Resources = {
     backupExcel: "Excel (.xlsx)",
     backupCsv: "CSV",
     backupImport: "Import backup",
+    importConfirm:
+      "This replaces your current data with the backup's. It can't be undone. Continue?",
     importOk: "Backup imported successfully.",
     importFail: "Import failed:",
     appLock: "App lock",
@@ -532,7 +534,10 @@ export const en: Resources = {
     mergeInto: "Merge into one…",
     noneFound: "No tags found.",
     tapToDetail: "Tap a tag to see details.",
-    multiSelectHint: "⌘/Ctrl + click selects several to merge in bulk.",
+    multiSelectHint: "Tap “Select” to pick several and merge/delete.",
+    select: "Select",
+    selectDone: "Done",
+    selectPrompt: "Tap tags to pick",
     confirmDeleteOne:
       'Remove the tag "#{{tag}}" from all transactions? The transactions are not deleted.',
     confirmDeleteMany: "Remove {{count}} tags from all transactions?",

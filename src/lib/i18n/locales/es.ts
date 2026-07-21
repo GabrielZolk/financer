@@ -108,6 +108,8 @@ export const es: Resources = {
     backupExcel: "Excel (.xlsx)",
     backupCsv: "CSV",
     backupImport: "Importar copia",
+    importConfirm:
+      "Esto reemplaza tus datos actuales por los de la copia. No se puede deshacer. ¿Continuar?",
     importOk: "Copia importada correctamente.",
     importFail: "Error al importar:",
     appLock: "Bloqueo de la app",
@@ -535,7 +537,10 @@ export const es: Resources = {
     mergeInto: "Fusionar en una…",
     noneFound: "No se encontraron etiquetas.",
     tapToDetail: "Toca una etiqueta para ver detalles.",
-    multiSelectHint: "⌘/Ctrl + clic selecciona varias para fusionar en lote.",
+    multiSelectHint: "Toca “Seleccionar” para elegir varias y fusionar/borrar.",
+    select: "Seleccionar",
+    selectDone: "Listo",
+    selectPrompt: "Toca las etiquetas para elegir",
     confirmDeleteOne:
       '¿Quitar la etiqueta "#{{tag}}" de todos los movimientos? Los movimientos no se borran.',
     confirmDeleteMany: "¿Quitar {{count}} etiquetas de todos los movimientos?",

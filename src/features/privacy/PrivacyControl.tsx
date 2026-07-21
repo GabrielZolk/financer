@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Lock, LockOpen, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button, Input, Label } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
@@ -8,12 +8,12 @@ import {
   usePrivacy,
   setupPin,
   unlock,
-  relockWithPin,
+  lock,
   setMode,
   type PrivacyMode,
 } from "@/lib/privacy";
 
-type Step = null | "setup" | "lock" | "choose" | "pin";
+type Step = null | "setup" | "choose" | "pin";
 
 export function PrivacyControl() {
   const { t } = useTranslation();
@@ -34,27 +34,8 @@ export function PrivacyControl() {
 
   function onPadlockClick() {
     if (!configured) setStep("setup");
-    else if (unlocked) setStep("lock"); // definir/renovar o PIN ao travar
+    else if (unlocked) lock(); // trava na hora, mantém o mesmo PIN
     else setStep("choose");
-  }
-
-  async function handleLock() {
-    setError("");
-    if (pin.length < 4) {
-      setError(t("common.errPinMin"));
-      return;
-    }
-    if (pin !== pin2) {
-      setError(t("common.errPinMismatch"));
-      return;
-    }
-    setBusy(true);
-    try {
-      await relockWithPin(pin);
-      close();
-    } finally {
-      setBusy(false);
-    }
   }
 
   async function handleSetup() {
@@ -89,7 +70,7 @@ export function PrivacyControl() {
     }
   }
 
-  const Icon = unlocked && mode === "full" ? LockOpen : Lock;
+  const Icon = unlocked && mode === "full" ? Eye : EyeOff;
   const color = !configured
     ? "text-muted"
     : unlocked
@@ -169,43 +150,6 @@ export function PrivacyControl() {
               {error && <p className="text-sm text-expense">{error}</p>}
               <Button className="w-full" onClick={handleSetup} disabled={busy}>
                 {busy ? t("priv.creating") : t("priv.activate")}
-              </Button>
-            </div>
-          </DialogContent>
-        )}
-
-        {step === "lock" && (
-          <DialogContent title={t("priv.lockTitle")}>
-            <div className="space-y-4">
-              <p className="text-sm text-muted">{t("priv.lockHint")}</p>
-              <div>
-                <Label>{t("common.pin")}</Label>
-                <Input
-                  type="text"
-                  autoComplete="off"
-                  inputMode="numeric"
-                  className="pin-mask"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  placeholder={t("common.pinMin")}
-                  autoFocus
-                />
-              </div>
-              <div>
-                <Label>{t("common.repeatPin")}</Label>
-                <Input
-                  type="text"
-                  autoComplete="off"
-                  inputMode="numeric"
-                  className="pin-mask"
-                  value={pin2}
-                  onChange={(e) => setPin2(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleLock()}
-                />
-              </div>
-              {error && <p className="text-sm text-expense">{error}</p>}
-              <Button className="w-full" onClick={handleLock} disabled={busy}>
-                {busy ? t("priv.locking") : t("priv.lockNow")}
               </Button>
             </div>
           </DialogContent>

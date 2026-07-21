@@ -59,9 +59,18 @@ export function DashboardPage() {
     [settings.baseCurrency, settings.rates],
   );
 
+  // saldo até o fim do mês selecionado (hoje, se for o mês atual) — pra as abas
+  // de mês moverem o saldão junto com entradas/saídas, não ficar parado em hoje
+  const balanceUpTo =
+    selectedMonth === thisMonth
+      ? new Date().toISOString().slice(0, 10)
+      : `${selectedMonth}-31`;
   const totalBalance = useMemo(
-    () => netWorth(accounts, transactions, settings.baseCurrency, rate),
-    [accounts, transactions, settings.baseCurrency, rate],
+    () =>
+      netWorth(accounts, transactions, settings.baseCurrency, rate, {
+        upToDate: balanceUpTo,
+      }),
+    [accounts, transactions, settings.baseCurrency, rate, balanceUpTo],
   );
 
   // série de saldo consolidado no fim de cada um dos últimos 6 meses

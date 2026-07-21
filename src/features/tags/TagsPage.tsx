@@ -52,6 +52,7 @@ export function TagsPage() {
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   // diálogos
@@ -88,12 +89,18 @@ export function TagsPage() {
       return next;
     });
   }
-  function onChipClick(e: React.MouseEvent, tag: string) {
-    if (e.metaKey || e.ctrlKey) toggleSelect(tag);
+  function onChipClick(_e: React.MouseEvent, tag: string) {
+    if (selectMode) toggleSelect(tag);
     else setFocused(tag);
   }
   function clearSelection() {
     setSelected(new Set());
+  }
+  function toggleSelectMode() {
+    setSelectMode((on) => {
+      if (on) setSelected(new Set()); // saindo do modo: limpa
+      return !on;
+    });
   }
 
   async function doDelete(tag: string) {
@@ -162,8 +169,16 @@ export function TagsPage() {
             placeholder={t("tags.searchPlaceholder")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="ml-auto h-9 w-auto min-w-[160px] flex-1 sm:max-w-[220px] sm:flex-none"
+            className="ml-auto h-9 w-auto min-w-[120px] flex-1 sm:max-w-[200px] sm:flex-none"
           />
+          <Button
+            size="sm"
+            variant={selectMode ? "primary" : "outline"}
+            className="h-9"
+            onClick={toggleSelectMode}
+          >
+            {selectMode ? t("tags.selectDone") : t("tags.select")}
+          </Button>
         </div>
 
         {/* detector de duplicadas */}
@@ -194,27 +209,35 @@ export function TagsPage() {
         )}
 
         {/* barra de seleção em lote */}
-        {selected.size >= 2 && (
+        {selectMode && (
           <div
             className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5 text-sm"
             style={{ background: "color-mix(in srgb, var(--primary) 9%, var(--surface))" }}
           >
             <b className="text-primary">
-              {t("tags.selectedCount", { count: selected.size })}
+              {selected.size > 0
+                ? t("tags.selectedCount", { count: selected.size })
+                : t("tags.selectPrompt")}
             </b>
-            <Button
-              size="sm"
-              className="ml-auto h-7"
-              onClick={() => setMerging([...selected])}
-            >
-              <Merge size={14} /> {t("tags.mergeInto")}
-            </Button>
-            <Button size="sm" variant="outline" className="h-7 text-expense" onClick={doDeleteSelected}>
-              <Trash2 size={14} /> {t("common.delete")}
-            </Button>
-            <Button size="sm" variant="ghost" className="h-7" onClick={clearSelection}>
-              {t("common.clear")}
-            </Button>
+            {selected.size >= 2 && (
+              <Button
+                size="sm"
+                className="ml-auto h-7"
+                onClick={() => setMerging([...selected])}
+              >
+                <Merge size={14} /> {t("tags.mergeInto")}
+              </Button>
+            )}
+            {selected.size >= 1 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className={selected.size >= 2 ? "h-7 text-expense" : "ml-auto h-7 text-expense"}
+                onClick={doDeleteSelected}
+              >
+                <Trash2 size={14} /> {t("common.delete")}
+              </Button>
+            )}
           </div>
         )}
 

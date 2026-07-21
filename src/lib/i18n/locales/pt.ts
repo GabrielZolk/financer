@@ -105,6 +105,8 @@ export const pt = {
     backupExcel: "Excel (.xlsx)",
     backupCsv: "CSV",
     backupImport: "Importar backup",
+    importConfirm:
+      "Isto substitui seus dados atuais pelos do backup. Não dá pra desfazer. Continuar?",
     importOk: "Backup importado com sucesso.",
     importFail: "Falha ao importar:",
     appLock: "Bloqueio do app",
@@ -536,7 +538,10 @@ export const pt = {
     mergeInto: "Mesclar em uma…",
     noneFound: "Nenhuma tag encontrada.",
     tapToDetail: "Toque numa tag para ver detalhes.",
-    multiSelectHint: "⌘/Ctrl + clique seleciona várias para mesclar em lote.",
+    multiSelectHint: "Toque em “Selecionar” pra escolher várias e mesclar/apagar.",
+    select: "Selecionar",
+    selectDone: "Concluir",
+    selectPrompt: "Toque nas tags pra escolher",
     confirmDeleteOne:
       'Remover a tag "#{{tag}}" de todos os lançamentos? Os lançamentos não são apagados.',
     confirmDeleteMany: "Remover {{count}} tags de todos os lançamentos?",
