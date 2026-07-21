@@ -35,6 +35,7 @@ export const pt = {
     budget: "Orçamento",
     goals: "Metas",
     reports: "Relatórios",
+    chat: "Assistente",
     settings: "Ajustes",
     more: "Mais",
   },
@@ -704,6 +705,27 @@ export const pt = {
       ai_unreachable: "Não consegui falar com a IA agora. Tente de novo.",
       ai_error: "Não consegui interpretar. Tente reescrever de outro jeito.",
     },
+  },
+  chat: {
+    title: "Assistente",
+    subtitle: "Pergunte sobre suas finanças",
+    greeting:
+      "Oi! Posso te ajudar a entender seus gastos, metas e orçamentos. Pergunte o que quiser.",
+    disabledTitle: "Ligue os Recursos de IA",
+    disabledDesc:
+      "O assistente usa IA. Ative em Ajustes pra conversar sobre suas finanças.",
+    needLoginTitle: "Entre na sua conta",
+    needLoginDesc:
+      "O assistente precisa de login (seus dados vão pro servidor com segurança).",
+    placeholder: "Pergunte sobre suas finanças…",
+    send: "Enviar",
+    thinking: "Pensando…",
+    suggestions: [
+      "Quanto gastei esse mês?",
+      "Onde dá pra economizar?",
+      "Como estão minhas metas?",
+      "Meu maior gasto do ano",
+    ],
   },
   danger: {
     title: "Zona de perigo",

@@ -9,6 +9,7 @@ import {
   Target,
   BarChart3,
   Settings,
+  Sparkles,
   MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
@@ -25,6 +26,7 @@ const NAV: { to: string; key: string; icon: LucideIcon; end?: boolean }[] = [
   { to: "/budget", key: "nav.budget", icon: PiggyBank },
   { to: "/goals", key: "nav.goals", icon: Target },
   { to: "/reports", key: "nav.reports", icon: BarChart3 },
+  { to: "/chat", key: "nav.chat", icon: Sparkles },
   { to: "/settings", key: "nav.settings", icon: Settings },
 ];
 

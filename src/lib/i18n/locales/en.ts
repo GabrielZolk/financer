@@ -37,6 +37,7 @@ export const en: Resources = {
     budget: "Budget",
     goals: "Goals",
     reports: "Reports",
+    chat: "Assistant",
     settings: "Settings",
     more: "More",
   },
@@ -700,6 +701,27 @@ export const en: Resources = {
       ai_unreachable: "Couldn't reach the AI right now. Try again.",
       ai_error: "Couldn't interpret that. Try rephrasing.",
     },
+  },
+  chat: {
+    title: "Assistant",
+    subtitle: "Ask about your finances",
+    greeting:
+      "Hi! I can help you make sense of your spending, goals, and budgets. Ask me anything.",
+    disabledTitle: "Turn on AI features",
+    disabledDesc:
+      "The assistant uses AI. Enable it in Settings to chat about your finances.",
+    needLoginTitle: "Sign in",
+    needLoginDesc:
+      "The assistant needs sign-in (your data goes to the server securely).",
+    placeholder: "Ask about your finances…",
+    send: "Send",
+    thinking: "Thinking…",
+    suggestions: [
+      "How much did I spend this month?",
+      "Where can I save?",
+      "How are my goals doing?",
+      "My biggest expense this year",
+    ],
   },
   danger: {
     title: "Danger zone",

@@ -12,6 +12,7 @@ import { ReportsPage } from "@/features/reports/ReportsPage";
 import { RecurrencesPage } from "@/features/recurrences/RecurrencesPage";
 import { CategoriesPage } from "@/features/categories/CategoriesPage";
 import { TagsPage } from "@/features/tags/TagsPage";
+import { ChatPage } from "@/features/chat/ChatPage";
 import { LegalPage } from "@/features/legal/LegalPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 
@@ -30,6 +31,7 @@ const router = createHashRouter([
       { path: "recurrences", element: <RecurrencesPage /> },
       { path: "categories", element: <CategoriesPage /> },
       { path: "tags", element: <TagsPage /> },
+      { path: "chat", element: <ChatPage /> },
       { path: "privacidade", element: <LegalPage doc="privacy" /> },
       { path: "termos", element: <LegalPage doc="terms" /> },
       { path: "settings", element: <SettingsPage /> },
