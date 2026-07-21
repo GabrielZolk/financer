@@ -1,10 +1,14 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Upload, FileText } from "lucide-react";
+import { Upload, FileText, Sparkles } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button, Label, Select } from "@/components/ui/primitives";
 import { bulkCreate } from "@/db/repo";
-import { useAccounts, useAllTransactions } from "@/db/hooks";
+import { useAccounts, useAllTransactions, useCategories } from "@/db/hooks";
+import { useSettings } from "@/lib/settings";
+import { useSyncState } from "@/lib/sync";
+import { categorizeImport } from "@/lib/aiCategorize";
+import { AiError } from "@/lib/ai";
 import { formatMoney } from "@/lib/money";
 import {
   parseOfx,
@@ -28,7 +32,12 @@ export function ImportDialog({
   const { t } = useTranslation();
   const accounts = useAccounts(true);
   const allTx = useAllTransactions();
+  const categories = useCategories();
+  const settings = useSettings();
+  const sync = useSyncState();
   const fileRef = useRef<HTMLInputElement>(null);
+  const aiAvailable =
+    settings.aiEnabled && (sync.status === "idle" || sync.status === "syncing");
 
   const [mode, setMode] = useState<Mode>("idle");
   const [fileName, setFileName] = useState("");
@@ -44,6 +53,9 @@ export function ImportDialog({
   const [importedCount, setImportedCount] = useState(0);
   const [skippedCount, setSkippedCount] = useState(0);
   const [error, setError] = useState("");
+  const [cats, setCats] = useState<(string | null)[]>([]);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState("");
 
   function reset() {
     setMode("idle");
@@ -53,6 +65,8 @@ export function ImportDialog({
     setError("");
     setImportedCount(0);
     setSkippedCount(0);
+    setCats([]);
+    setAiError("");
   }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -87,6 +101,34 @@ export function ImportDialog({
   // 1ª linha de dados, pra mostrar um exemplo do conteúdo de cada coluna
   const sampleRow = csvRows[cols.headerRow >= 0 ? cols.headerRow + 1 : 0] ?? [];
 
+  const categoryMap = useMemo(
+    () => new Map(categories.map((c) => [c.id, c.name])),
+    [categories],
+  );
+  // ao trocar de arquivo/mapeamento, zera as categorias sugeridas
+  useEffect(() => {
+    setCats([]);
+    setAiError("");
+  }, [parsed]);
+
+  async function runAiCategorize() {
+    if (aiBusy || !parsed.length) return;
+    setAiBusy(true);
+    setAiError("");
+    try {
+      const result = await categorizeImport(
+        parsed.map((p) => p.description),
+        categories.map((c) => ({ id: c.id, name: c.name, kind: c.kind })),
+      );
+      setCats(result);
+    } catch (e) {
+      const code = e instanceof AiError ? e.code : "ai_error";
+      setAiError(t(`ai.err.${code}`, { defaultValue: t("ai.err.ai_error") }));
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
   async function confirmImport() {
     if (!accountId) {
       setError(t("imp.errDest"));
@@ -106,21 +148,23 @@ export function ImportDialog({
         .filter((x) => x.accountId === accountId && x.deleted === 0)
         .map((x) => key(x.date, x.amountCents, x.kind)),
     );
-    const fresh = parsed.filter((p) => {
-      const kind = p.amountCents < 0 ? "expense" : "income";
-      return !seen.has(key(p.date, Math.abs(p.amountCents), kind));
-    });
+    const fresh = parsed
+      .map((p, i) => ({ p, cat: cats[i] ?? null }))
+      .filter(({ p }) => {
+        const kind = p.amountCents < 0 ? "expense" : "income";
+        return !seen.has(key(p.date, Math.abs(p.amountCents), kind));
+      });
     await bulkCreate<Transaction>(
       "transactions",
-      fresh.map((t) => ({
+      fresh.map(({ p, cat }) => ({
         accountId,
         toAccountId: null,
-        categoryId: null,
-        kind: t.amountCents < 0 ? ("expense" as const) : ("income" as const),
-        amountCents: Math.abs(t.amountCents),
+        categoryId: cat,
+        kind: p.amountCents < 0 ? ("expense" as const) : ("income" as const),
+        amountCents: Math.abs(p.amountCents),
         currency: account?.currency ?? "BRL",
-        date: t.date,
-        description: t.description,
+        date: p.date,
+        description: p.description,
         tags: ["importado"],
         status: "cleared" as const,
       })),
@@ -201,26 +245,47 @@ export function ImportDialog({
             )}
 
             <div>
-              <p className="mb-1 text-sm font-medium">
-                {t("imp.recognized", { count: parsed.length })}
-              </p>
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <p className="text-sm font-medium">
+                  {t("imp.recognized", { count: parsed.length })}
+                </p>
+                {aiAvailable && parsed.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={runAiCategorize}
+                    disabled={aiBusy}
+                  >
+                    <Sparkles size={14} />
+                    {aiBusy ? t("imp.categorizing") : t("imp.categorizeAi")}
+                  </Button>
+                )}
+              </div>
+              {aiError && <p className="mb-1 text-xs text-expense">{aiError}</p>}
               <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-border p-2">
-                {parsed.slice(0, 30).map((t, i) => (
+                {parsed.slice(0, 30).map((row, i) => (
                   <div
                     key={i}
-                    className="flex items-center justify-between text-xs"
+                    className="flex items-center justify-between gap-2 text-xs"
                   >
-                    <span className="truncate text-muted">
-                      {t.date} · {t.description}
+                    <span className="min-w-0 truncate text-muted">
+                      {row.date} · {row.description}
+                      {cats[i] && (
+                        <span className="ml-1 text-primary">
+                          · {categoryMap.get(cats[i]!) ?? ""}
+                        </span>
+                      )}
                     </span>
                     <span
                       className="tabular"
                       style={{
                         color:
-                          t.amountCents < 0 ? "var(--expense)" : "var(--income)",
+                          row.amountCents < 0
+                            ? "var(--expense)"
+                            : "var(--income)",
                       }}
                     >
-                      {formatMoney(t.amountCents)}
+                      {formatMoney(row.amountCents)}
                     </span>
                   </div>
                 ))}

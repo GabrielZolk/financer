@@ -583,6 +583,8 @@ export const en: Resources = {
     colAmount: "Amount",
     column: "Column {{n}}",
     recognized: "{{count}} transaction(s) recognized",
+    categorizeAi: "Categorize with AI",
+    categorizing: "Categorizing…",
     nothingRecognized: "Nothing recognized — adjust the columns above.",
     errDest: "Select the destination account.",
     errNone: "No transactions recognized.",

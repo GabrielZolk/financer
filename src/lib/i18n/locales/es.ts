@@ -586,6 +586,8 @@ export const es: Resources = {
     colAmount: "Importe",
     column: "Columna {{n}}",
     recognized: "{{count}} movimiento(s) reconocido(s)",
+    categorizeAi: "Categorizar con IA",
+    categorizing: "Categorizando…",
     nothingRecognized: "Nada reconocido — ajusta las columnas de arriba.",
     errDest: "Selecciona la cuenta de destino.",
     errNone: "Ningún movimiento reconocido.",
