@@ -729,6 +729,14 @@ export const pt = {
       "Meu maior gasto do ano",
     ],
   },
+  insights: {
+    title: "Insights",
+    intro: "Um resumo rápido do que os seus números estão dizendo.",
+    generate: "Gerar insights",
+    thinking: "Analisando…",
+    refresh: "Atualizar",
+    empty: "Sem observações no momento.",
+  },
   danger: {
     title: "Zona de perigo",
     desc: "Apaga permanentemente todos os seus dados. Não dá pra desfazer.",

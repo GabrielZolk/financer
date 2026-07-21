@@ -22,6 +22,7 @@ import { Sparkline } from "@/components/ui/Sparkline";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { PageHeader } from "@/components/PageHeader";
 import { QuickActions } from "./QuickActions";
+import { InsightsCard } from "./InsightsCard";
 import { TransactionItem } from "@/features/transactions/TransactionItem";
 
 function shiftMonth(month: string, delta: number): string {
@@ -245,6 +246,9 @@ export function DashboardPage() {
           <Sparkline values={sparkValues} />
         </div>
       </Card>
+
+      {/* Insights de IA (aparece só com IA ligada + logado) */}
+      <InsightsCard />
 
       {/* Próximos vencimentos (lembretes) */}
       {due.length > 0 && (

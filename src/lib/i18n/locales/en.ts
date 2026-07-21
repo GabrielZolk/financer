@@ -725,6 +725,14 @@ export const en: Resources = {
       "My biggest expense this year",
     ],
   },
+  insights: {
+    title: "Insights",
+    intro: "A quick read of what your numbers are saying.",
+    generate: "Generate insights",
+    thinking: "Analyzing…",
+    refresh: "Refresh",
+    empty: "No insights right now.",
+  },
   danger: {
     title: "Danger zone",
     desc: "Permanently erases all your data. This can't be undone.",

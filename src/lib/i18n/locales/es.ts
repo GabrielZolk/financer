@@ -728,6 +728,14 @@ export const es: Resources = {
       "Mi mayor gasto del año",
     ],
   },
+  insights: {
+    title: "Insights",
+    intro: "Un resumen rápido de lo que dicen tus números.",
+    generate: "Generar insights",
+    thinking: "Analizando…",
+    refresh: "Actualizar",
+    empty: "Sin observaciones por ahora.",
+  },
   danger: {
     title: "Zona de peligro",
     desc: "Borra permanentemente todos tus datos. No se puede deshacer.",
