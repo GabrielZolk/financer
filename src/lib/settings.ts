@@ -11,6 +11,8 @@ export interface AppSettings {
   language: string;
   /** taxas de câmbio: quantas unidades da moeda BASE valem 1 unidade da moeda. Ex.: { USD: 5.4 } */
   rates: Record<string, number>;
+  /** Recursos de IA (opt-in, desligado por padrão). Manda dados pra API externa. */
+  aiEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -20,6 +22,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   locale: "pt-BR",
   language: "pt",
   rates: {},
+  aiEnabled: false,
 };
 
 /** Cria a função de câmbio usada pelos cálculos de patrimônio. */

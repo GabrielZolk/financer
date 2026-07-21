@@ -20,6 +20,8 @@ export const es: Resources = {
     no: "No",
     search: "Buscar",
     clear: "Limpiar",
+    enable: "Activar",
+    disable: "Desactivar",
     confirmDelete: "¿Eliminar {{what}}? Esta acción no se puede deshacer.",
     pin: "PIN",
     pinMin: "mín. 4 dígitos",
@@ -94,6 +96,10 @@ export const es: Resources = {
     importStatement: "Importar extracto",
     importStatementDesc:
       "Trae movimientos de un archivo CSV u OFX del banco.",
+    aiTitle: "Funciones de IA",
+    aiDesc: "Escribe el movimiento en lenguaje natural y la IA lo completa por ti.",
+    aiNote:
+      "Al usarla, el texto que escribas más los nombres de tus cuentas y categorías se envían a un proveedor de IA (xAI) para interpretarlos. Nada se guarda sin tu confirmación. Desactívala cuando quieras.",
     categories: "Categorías",
     categoriesDesc: "Crea y personaliza con color e icono.",
     tags: "Etiquetas",
@@ -678,11 +684,25 @@ export const es: Resources = {
   },
   qa: {
     title: "¿Qué quieres hacer?",
+    aiEntry: "Escribir en lenguaje natural",
     expense: "Registrar gasto",
     income: "Registrar ingreso",
     transfer: "Transferir entre cuentas",
     payCard: "Pagar tarjeta",
     saveGoal: "Guardar en una meta",
+  },
+  ai: {
+    title: "Escribir en lenguaje natural",
+    hint: "Describe el gasto o ingreso a tu manera. La IA completa el formulario para que lo revises antes de guardar.",
+    placeholder: "ej.: gasté 54,90 en el mercado ayer con débito",
+    interpret: "Interpretar",
+    interpreting: "Interpretando…",
+    err: {
+      ai_needs_login: "Inicia sesión para usar la IA.",
+      ai_not_configured: "La IA aún no está configurada (falta la clave en el servidor).",
+      ai_unreachable: "No pude contactar a la IA ahora. Inténtalo de nuevo.",
+      ai_error: "No pude interpretarlo. Prueba a reescribirlo.",
+    },
   },
   danger: {
     title: "Zona de peligro",

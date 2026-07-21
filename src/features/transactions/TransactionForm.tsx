@@ -102,6 +102,7 @@ export function TransactionForm({
   duplicateFrom,
   defaultAccountId,
   defaultKind,
+  prefill,
   onDuplicate,
 }: {
   open: boolean;
@@ -112,6 +113,15 @@ export function TransactionForm({
   defaultAccountId?: string;
   /** tipo inicial ao abrir um lançamento novo (despesa/receita/transferência) */
   defaultKind?: TransactionKind;
+  /** valores sugeridos ao abrir um lançamento novo (ex.: vindos da IA) */
+  prefill?: {
+    kind?: TransactionKind;
+    amountCents?: number;
+    description?: string;
+    categoryId?: string | null;
+    accountId?: string | null;
+    date?: string;
+  };
   /** pede ao pai pra reabrir o form duplicando este lançamento */
   onDuplicate?: (tx: Transaction) => void;
 }) {
@@ -258,16 +268,22 @@ export function TransactionForm({
         setSplits([]);
       }
     } else {
-      setKind(defaultKind ?? "expense");
-      setAmount("");
-      setAccountId(defaultAccountId ?? accounts[0]?.id ?? "");
+      setKind(prefill?.kind ?? defaultKind ?? "expense");
+      setAmount(
+        prefill?.amountCents != null
+          ? (prefill.amountCents / 100).toString().replace(".", ",")
+          : "",
+      );
+      setAccountId(
+        prefill?.accountId ?? defaultAccountId ?? accounts[0]?.id ?? "",
+      );
       setToAccountId("");
-      setCategoryId("");
-      setDate(today());
+      setCategoryId(prefill?.categoryId ?? "");
+      setDate(prefill?.date ?? today());
       setRangeMode(false);
       setEndDate("");
       setIsPrivate(false);
-      setDescription("");
+      setDescription(prefill?.description ?? "");
       setNotes("");
       setTagsInput("");
       setPending(false);

@@ -10,6 +10,7 @@ import {
   FileSpreadsheet,
   Tag,
   Tags,
+  Sparkles,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -96,6 +97,28 @@ export function SettingsPage() {
 
       {/* Idioma */}
       <LanguageCard />
+
+      {/* Recursos de IA (opt-in) */}
+      <Card className="mb-4">
+        <div className="flex items-center gap-3">
+          <Sparkles size={18} className="text-primary" />
+          <div className="flex-1">
+            <p className="font-semibold">{t("settings.aiTitle")}</p>
+            <p className="text-sm text-muted">{t("settings.aiDesc")}</p>
+          </div>
+          <Button
+            variant={settings.aiEnabled ? "outline" : "primary"}
+            onClick={() => setSetting("aiEnabled", !settings.aiEnabled)}
+          >
+            {settings.aiEnabled ? t("common.disable") : t("common.enable")}
+          </Button>
+        </div>
+        {settings.aiEnabled && (
+          <p className="mt-3 rounded-xl border border-border bg-surface-2/50 p-3 text-xs text-muted">
+            {t("settings.aiNote")}
+          </p>
+        )}
+      </Card>
 
       {/* Importar extrato */}
       <Card className="mb-4">
