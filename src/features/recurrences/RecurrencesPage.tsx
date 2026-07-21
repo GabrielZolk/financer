@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useTranslation } from "react-i18next";
-import { Plus, Repeat, Trash2, ArrowLeft } from "lucide-react";
+import { Plus, Repeat, Trash2, ArrowLeft, Pause, Play } from "lucide-react";
 import { Link } from "react-router-dom";
 import { db } from "@/db/schema";
 import { create, update, softDelete } from "@/db/repo";
 import { useAccounts, useCategories } from "@/db/hooks";
 import { formatMoney, parseMoney } from "@/lib/money";
 import { formatDate } from "@/lib/format";
-import { confirmDelete } from "@/lib/utils";
+import { confirmDelete, cn } from "@/lib/utils";
 import {
   Button,
   Card,
@@ -84,14 +84,24 @@ export function RecurrencesPage() {
             return (
               <Card
                 key={r.id}
-                className="flex cursor-pointer items-center justify-between"
+                className={cn(
+                  "flex cursor-pointer items-center justify-between gap-2",
+                  r.active === 0 && "opacity-60",
+                )}
                 onClick={() => {
                   setEditing(r);
                   setFormOpen(true);
                 }}
               >
                 <div className="min-w-0">
-                  <p className="truncate font-medium">{r.description}</p>
+                  <p className="truncate font-medium">
+                    {r.description}
+                    {r.active === 0 && (
+                      <span className="ml-2 rounded-full bg-surface-2 px-2 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-muted">
+                        {t("rec.pausedBadge")}
+                      </span>
+                    )}
+                  </p>
                   <p className="text-xs text-muted">
                     {t(FREQ_KEY[r.frequency])} · {acc?.name ?? ""} ·{" "}
                     {t("rec.nextPrefix")}{" "}
@@ -102,20 +112,35 @@ export function RecurrencesPage() {
                     })}
                   </p>
                 </div>
-                <span
-                  className="shrink-0 font-semibold tabular"
-                  style={{
-                    color:
-                      r.kind === "income"
-                        ? "var(--income)"
-                        : r.kind === "expense"
-                          ? "var(--expense)"
-                          : "var(--muted)",
-                  }}
-                >
-                  {sign}
-                  {formatMoney(r.amountCents)}
-                </span>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void update<Recurrence>("recurrences", r.id, {
+                        active: r.active === 1 ? 0 : 1,
+                      });
+                    }}
+                    className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-text"
+                    aria-label={r.active === 1 ? t("rec.pause") : t("rec.resume")}
+                    title={r.active === 1 ? t("rec.pause") : t("rec.resume")}
+                  >
+                    {r.active === 1 ? <Pause size={16} /> : <Play size={16} />}
+                  </button>
+                  <span
+                    className="font-semibold tabular"
+                    style={{
+                      color:
+                        r.kind === "income"
+                          ? "var(--income)"
+                          : r.kind === "expense"
+                            ? "var(--expense)"
+                            : "var(--muted)",
+                    }}
+                  >
+                    {sign}
+                    {formatMoney(r.amountCents)}
+                  </span>
+                </div>
               </Card>
             );
           })}
@@ -156,7 +181,6 @@ function RecurrenceForm({
   const [frequency, setFrequency] = useState<RecurrenceFrequency>("monthly");
   const [nextDate, setNextDate] = useState(today());
   const [endDate, setEndDate] = useState("");
-  const [active, setActive] = useState(true);
   const [error, setError] = useState("");
   const [catFormOpen, setCatFormOpen] = useState(false);
 
@@ -179,7 +203,6 @@ function RecurrenceForm({
       setFrequency(editing.frequency);
       setNextDate(editing.nextDate);
       setEndDate(editing.endDate ?? "");
-      setActive(editing.active === 1);
     } else {
       setKind("expense");
       setDescription("");
@@ -189,7 +212,6 @@ function RecurrenceForm({
       setFrequency("monthly");
       setNextDate(today());
       setEndDate("");
-      setActive(true);
     }
     setError("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -215,7 +237,7 @@ function RecurrenceForm({
       frequency,
       nextDate,
       endDate: endDate || null,
-      active: active ? (1 as const) : (0 as const),
+      active: editing ? editing.active : (1 as const),
     };
     if (editing) await update<Recurrence>("recurrences", editing.id, data);
     else await create<Recurrence>("recurrences", data);
@@ -323,16 +345,6 @@ function RecurrenceForm({
               />
             </div>
           </div>
-
-          <label className="flex items-center gap-2 text-sm text-muted">
-            <input
-              type="checkbox"
-              checked={active}
-              onChange={(e) => setActive(e.target.checked)}
-              className="h-4 w-4 rounded border-border"
-            />
-            {t("rec.active")}
-          </label>
 
           {error && <p className="text-sm text-expense">{error}</p>}
 

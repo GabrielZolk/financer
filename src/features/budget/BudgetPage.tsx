@@ -274,10 +274,22 @@ function BudgetForm({
     }
     const rec = (recurring ? 1 : 0) as 0 | 1;
     if (editing) {
-      await update<Budget>("budgets", editing.id, {
-        limitCents: cents,
-        recurring: rec,
-      });
+      if (rec === 1 && month > editing.month) {
+        // recorrente editado num mês posterior → vale DAQUI PRA FRENTE:
+        // cria um novo recorrente a partir do mês atual e mantém o antigo
+        // valendo pros meses passados (não reescreve o histórico).
+        await create<Budget>("budgets", {
+          categoryId: editing.categoryId,
+          month,
+          limitCents: cents,
+          recurring: 1,
+        });
+      } else {
+        await update<Budget>("budgets", editing.id, {
+          limitCents: cents,
+          recurring: rec,
+        });
+      }
     } else {
       await create<Budget>("budgets", {
         categoryId,

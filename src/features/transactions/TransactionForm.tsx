@@ -375,7 +375,9 @@ export function TransactionForm({
       currency: account?.currency ?? "BRL",
       date,
       endDate: rangeMode && endDate ? endDate : null,
-      description: description.trim() || defaultDescription(kind, t),
+      description:
+        description.trim() ||
+        defaultDescription(kind, categoryId, categories, t),
       notes: notes.trim() || undefined,
       tags: parseTags(tagsInput),
       status: pending ? ("pending" as const) : ("cleared" as const),
@@ -1175,7 +1177,14 @@ export function TransactionForm({
   );
 }
 
-function defaultDescription(kind: TransactionKind, t: TFunction): string {
+function defaultDescription(
+  kind: TransactionKind,
+  categoryId: string,
+  categories: { id: string; name: string }[],
+  t: TFunction,
+): string {
+  const cat = categoryId ? categories.find((c) => c.id === categoryId) : null;
+  if (cat) return cat.name;
   if (kind === "income") return t("tx.kindIncome");
   if (kind === "transfer") return t("tx.kindTransfer");
   return t("tx.kindExpense");

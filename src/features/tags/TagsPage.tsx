@@ -379,7 +379,7 @@ function TagDetail({
         </div>
         <div className="rounded-xl bg-surface-2 px-3 py-2.5">
           <div className="text-[11.5px] text-muted">{t("tags.totalSpent")}</div>
-          <div className="mt-0.5 text-lg font-extrabold tabular text-expense">
+          <div className="mt-0.5 text-lg font-extrabold tabular">
             {formatMoney(stat.totalCents)}
           </div>
         </div>
