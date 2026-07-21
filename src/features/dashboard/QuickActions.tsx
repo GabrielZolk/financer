@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -8,12 +8,14 @@ import {
   CreditCard,
   PiggyBank,
   Sparkles,
+  Camera,
   type LucideIcon,
 } from "lucide-react";
 import { useAccounts, useGoals, useCategories } from "@/db/hooks";
 import { useSettings } from "@/lib/settings";
 import { useSyncState } from "@/lib/sync";
-import { parseNaturalTransaction, AiError } from "@/lib/ai";
+import { parseNaturalTransaction, AiError, type AiContext } from "@/lib/ai";
+import { parseReceipt } from "@/lib/aiReceipt";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button, Textarea } from "@/components/ui/primitives";
 import { TransactionForm } from "@/features/transactions/TransactionForm";
@@ -53,9 +55,39 @@ export function QuickActions({
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState("");
 
+  const [receiptBusy, setReceiptBusy] = useState(false);
+  const [receiptError, setReceiptError] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+
   const cards = accounts.filter((a) => a.type === "credit_card");
   const signedIn = sync.status === "idle" || sync.status === "syncing";
   const aiAvailable = settings.aiEnabled && signedIn;
+
+  const buildCtx = (): AiContext => ({
+    accounts: accounts.map((a) => ({ id: a.id, name: a.name })),
+    categories: categories.map((c) => ({ id: c.id, name: c.name, kind: c.kind })),
+    currency: settings.baseCurrency,
+    today: new Date().toISOString().slice(0, 10),
+  });
+
+  async function handleReceiptFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setReceiptBusy(true);
+    setReceiptError("");
+    try {
+      const parsed = await parseReceipt(file, buildCtx());
+      setPrefill(parsed);
+      setTxKind(parsed.kind);
+      setReceiptBusy(false);
+      setTxOpen(true);
+    } catch (err) {
+      const code = err instanceof AiError ? err.code : "ai_error";
+      setReceiptError(t(`ai.err.${code}`, { defaultValue: t("ai.err.ai_error") }));
+      setReceiptBusy(false);
+    }
+  }
 
   const openTx = (kind: TransactionKind) => {
     setPrefill(undefined);
@@ -80,16 +112,7 @@ export function QuickActions({
     setAiBusy(true);
     setAiError("");
     try {
-      const parsed = await parseNaturalTransaction(text, {
-        accounts: accounts.map((a) => ({ id: a.id, name: a.name })),
-        categories: categories.map((c) => ({
-          id: c.id,
-          name: c.name,
-          kind: c.kind,
-        })),
-        currency: settings.baseCurrency,
-        today: new Date().toISOString().slice(0, 10),
-      });
+      const parsed = await parseNaturalTransaction(text, buildCtx());
       setPrefill(parsed);
       setTxKind(parsed.kind);
       setAiOpen(false);
@@ -111,6 +134,15 @@ export function QuickActions({
             label: t("qa.aiEntry"),
             cls: "bg-primary/15 text-primary",
             onClick: openAi,
+          } as Item,
+          {
+            icon: Camera,
+            label: t("qa.receipt"),
+            cls: "bg-primary/15 text-primary",
+            onClick: () => {
+              onOpenChange(false);
+              fileRef.current?.click();
+            },
           } as Item,
         ]
       : []),
@@ -208,6 +240,44 @@ export function QuickActions({
                 {aiBusy ? t("ai.interpreting") : t("ai.interpret")}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Foto de cupom — input escondido (câmera no mobile) */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleReceiptFile}
+      />
+      <Dialog
+        open={receiptBusy || !!receiptError}
+        onOpenChange={(o) => {
+          if (!o) {
+            setReceiptBusy(false);
+            setReceiptError("");
+          }
+        }}
+      >
+        <DialogContent title={t("qa.receipt")}>
+          <div className="space-y-3 py-2 text-center">
+            <Camera size={28} className="mx-auto text-primary" />
+            {receiptError ? (
+              <p className="text-sm text-expense">{receiptError}</p>
+            ) : (
+              <p className="text-sm text-muted">{t("qa.receiptReading")}</p>
+            )}
+            {receiptError && (
+              <Button
+                variant="outline"
+                onClick={() => setReceiptError("")}
+              >
+                {t("common.close")}
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>

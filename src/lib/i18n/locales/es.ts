@@ -688,6 +688,8 @@ export const es: Resources = {
   qa: {
     title: "¿Qué quieres hacer?",
     aiEntry: "Escribir en lenguaje natural",
+    receipt: "Foto de recibo",
+    receiptReading: "Leyendo el recibo…",
     expense: "Registrar gasto",
     income: "Registrar ingreso",
     transfer: "Transferir entre cuentas",

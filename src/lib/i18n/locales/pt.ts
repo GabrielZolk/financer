@@ -689,6 +689,8 @@ export const pt = {
   qa: {
     title: "O que você quer fazer?",
     aiEntry: "Escrever em linguagem natural",
+    receipt: "Foto de cupom",
+    receiptReading: "Lendo o cupom…",
     expense: "Registrar despesa",
     income: "Registrar receita",
     transfer: "Transferir entre contas",
