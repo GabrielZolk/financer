@@ -4,7 +4,7 @@ import { Upload, FileText } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button, Label, Select } from "@/components/ui/primitives";
 import { bulkCreate } from "@/db/repo";
-import { useAccounts } from "@/db/hooks";
+import { useAccounts, useAllTransactions } from "@/db/hooks";
 import { formatMoney } from "@/lib/money";
 import {
   parseOfx,
@@ -27,6 +27,7 @@ export function ImportDialog({
 }) {
   const { t } = useTranslation();
   const accounts = useAccounts(true);
+  const allTx = useAllTransactions();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [mode, setMode] = useState<Mode>("idle");
@@ -41,6 +42,7 @@ export function ImportDialog({
   });
   const [ofxTxs, setOfxTxs] = useState<ParsedTx[]>([]);
   const [importedCount, setImportedCount] = useState(0);
+  const [skippedCount, setSkippedCount] = useState(0);
   const [error, setError] = useState("");
 
   function reset() {
@@ -50,6 +52,7 @@ export function ImportDialog({
     setOfxTxs([]);
     setError("");
     setImportedCount(0);
+    setSkippedCount(0);
   }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -81,6 +84,8 @@ export function ImportDialog({
   }, [mode, csvRows, cols, ofxTxs]);
 
   const colOptions = csvRows[0]?.map((_, i) => i) ?? [];
+  // 1ª linha de dados, pra mostrar um exemplo do conteúdo de cada coluna
+  const sampleRow = csvRows[cols.headerRow >= 0 ? cols.headerRow + 1 : 0] ?? [];
 
   async function confirmImport() {
     if (!accountId) {
@@ -92,9 +97,22 @@ export function ImportDialog({
       return;
     }
     const account = accounts.find((a) => a.id === accountId);
+    // dedup: não recria lançamentos que já existem nessa conta (mesma data,
+    // valor e tipo) — evita duplicar ao reimportar o mesmo extrato
+    const key = (date: string, cents: number, kind: string) =>
+      `${date}|${cents}|${kind}`;
+    const seen = new Set(
+      allTx
+        .filter((x) => x.accountId === accountId && x.deleted === 0)
+        .map((x) => key(x.date, x.amountCents, x.kind)),
+    );
+    const fresh = parsed.filter((p) => {
+      const kind = p.amountCents < 0 ? "expense" : "income";
+      return !seen.has(key(p.date, Math.abs(p.amountCents), kind));
+    });
     await bulkCreate<Transaction>(
       "transactions",
-      parsed.map((t) => ({
+      fresh.map((t) => ({
         accountId,
         toAccountId: null,
         categoryId: null,
@@ -107,7 +125,8 @@ export function ImportDialog({
         status: "cleared" as const,
       })),
     );
-    setImportedCount(parsed.length);
+    setImportedCount(fresh.length);
+    setSkippedCount(parsed.length - fresh.length);
     setMode("done");
   }
 
@@ -166,11 +185,15 @@ export function ImportDialog({
                         setCols({ ...cols, [key]: Number(e.target.value) })
                       }
                     >
-                      {colOptions.map((i) => (
-                        <option key={i} value={i}>
-                          {t("imp.column", { n: i + 1 })}
-                        </option>
-                      ))}
+                      {colOptions.map((i) => {
+                        const ex = (sampleRow[i] ?? "").trim().slice(0, 18);
+                        return (
+                          <option key={i} value={i}>
+                            {t("imp.column", { n: i + 1 })}
+                            {ex ? ` — ${ex}` : ""}
+                          </option>
+                        );
+                      })}
                     </Select>
                   </div>
                 ))}
@@ -227,6 +250,11 @@ export function ImportDialog({
             <p className="text-lg font-semibold text-income">
               {t("imp.doneMsg", { count: importedCount })}
             </p>
+            {skippedCount > 0 && (
+              <p className="text-sm text-muted">
+                {t("imp.skipped", { count: skippedCount })}
+              </p>
+            )}
             <Button
               className="w-full"
               onClick={() => {

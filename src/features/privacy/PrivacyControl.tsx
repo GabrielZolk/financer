@@ -13,7 +13,7 @@ import {
   type PrivacyMode,
 } from "@/lib/privacy";
 
-type Step = null | "setup" | "choose" | "pin";
+type Step = null | "setup" | "pin";
 
 export function PrivacyControl() {
   const { t } = useTranslation();
@@ -35,7 +35,10 @@ export function PrivacyControl() {
   function onPadlockClick() {
     if (!configured) setStep("setup");
     else if (unlocked) lock(); // trava na hora, mantém o mesmo PIN
-    else setStep("choose");
+    else {
+      setChosen("full"); // destravar em 1 passo: padrão "mostrar tudo"
+      setStep("pin");
+    }
   }
 
   async function handleSetup() {
@@ -108,7 +111,7 @@ export function PrivacyControl() {
       {unlocked && (
         <button
           onClick={() => setMode(mode === "full" ? "partial" : "full")}
-          className="ml-1 hidden rounded-lg bg-surface-2 px-2 py-1 text-[11px] font-semibold text-muted hover:text-text sm:block"
+          className="ml-1 rounded-lg bg-surface-2 px-2 py-1 text-[11px] font-semibold text-muted hover:text-text"
         >
           {mode === "full" ? t("priv.toggleAll") : t("priv.togglePartial")}
         </button>
@@ -155,41 +158,10 @@ export function PrivacyControl() {
           </DialogContent>
         )}
 
-        {step === "choose" && (
-          <DialogContent title={t("priv.unlockTitle")}>
-            <div className="space-y-3">
-              <p className="text-sm text-muted">{t("priv.howSee")}</p>
-              <Choice
-                title={t("priv.showAllTitle")}
-                desc={t("priv.showAllDesc")}
-                onClick={() => {
-                  setChosen("full");
-                  setStep("pin");
-                }}
-              />
-              <Choice
-                title={t("priv.partialTitle")}
-                desc={t("priv.partialDesc")}
-                onClick={() => {
-                  setChosen("partial");
-                  setStep("pin");
-                }}
-              />
-            </div>
-          </DialogContent>
-        )}
-
         {step === "pin" && (
           <DialogContent title={t("priv.enterPinTitle")}>
             <div className="space-y-4">
-              <p className="text-sm text-muted">
-                {t("priv.modeLabel", {
-                  mode:
-                    chosen === "full"
-                      ? t("priv.modeShowAll")
-                      : t("priv.modePartial"),
-                })}
-              </p>
+              <p className="text-sm text-muted">{t("priv.enterPinHint")}</p>
               <Input
                 type="text"
                 autoComplete="off"
@@ -201,17 +173,19 @@ export function PrivacyControl() {
                 autoFocus
                 onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
               />
+              <label className="flex cursor-pointer items-start gap-2 text-xs text-muted">
+                <input
+                  type="checkbox"
+                  checked={chosen === "partial"}
+                  onChange={(e) => setChosen(e.target.checked ? "partial" : "full")}
+                  className="mt-0.5 h-4 w-4 accent-primary"
+                />
+                <span>{t("priv.partialAdvanced")}</span>
+              </label>
               {error && <p className="text-sm text-expense">{error}</p>}
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    setStep("choose");
-                    setError("");
-                  }}
-                >
-                  {t("common.back")}
+                <Button variant="outline" className="flex-1" onClick={close}>
+                  {t("common.cancel")}
                 </Button>
                 <Button className="flex-1" onClick={handleUnlock} disabled={busy}>
                   {busy ? "…" : t("priv.unlockBtn")}
@@ -222,26 +196,6 @@ export function PrivacyControl() {
         )}
       </Dialog>
     </>
-  );
-}
-
-function Choice({
-  title,
-  desc,
-  onClick,
-}: {
-  title: string;
-  desc: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="w-full rounded-xl border border-border bg-surface-2 p-3 text-left transition-colors hover:border-primary"
-    >
-      <div className="text-sm font-bold">{title}</div>
-      <div className="mt-0.5 text-xs text-muted">{desc}</div>
-    </button>
   );
 }
 

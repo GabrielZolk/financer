@@ -104,7 +104,9 @@ export const es: Resources = {
     backup: "Copia de seguridad",
     backupDesc:
       "Tus datos quedan en el dispositivo. Exporta una copia completa (.json) para restaurar luego, o un .csv para abrir en una hoja de cálculo.",
-    backupJson: "Copia (.json)",
+    exportData: "Exportar mis datos",
+    backupSection: "Copia completa",
+    backupJson: "Guardar copia (.json)",
     backupExcel: "Excel (.xlsx)",
     backupCsv: "CSV",
     backupImport: "Importar copia",
@@ -192,8 +194,8 @@ export const es: Resources = {
     addItem: "+ Añadir ítem",
     period: "Período",
     date: "Fecha",
-    addPeriod: "+ período",
-    removePeriod: "− período",
+    addPeriod: "+ varios días",
+    removePeriod: "− varios días",
     description: "Descripción",
     optionalPlaceholder: "Opcional",
     notes: "Notas",
@@ -583,6 +585,7 @@ export const es: Resources = {
     changeFile: "Cambiar archivo",
     importN: "Importar {{count}}",
     doneMsg: "¡{{count}} movimientos importados! ✅",
+    skipped: "{{count}} ya existían y se omitieron.",
     finish: "Listo",
   },
   legal: {
@@ -754,6 +757,8 @@ export const es: Resources = {
     partialDesc:
       "Los mantiene ocultos pero incluye los valores en el total — para que el número sea correcto sin revelar qué.",
     enterPinTitle: "Introduce tu PIN",
+    enterPinHint: "Introduce tu PIN para mostrar los privados.",
+    partialAdvanced: "Modo parcial: suma en el total sin mostrar qué (avanzado)",
     modeLabel: "Modo: {{mode}}",
     modeShowAll: "mostrar todo",
     unlockBtn: "Desbloquear",

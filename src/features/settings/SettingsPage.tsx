@@ -183,15 +183,24 @@ export function SettingsPage() {
       <Card className="mb-4">
         <h2 className="mb-1 text-base font-semibold">{t("settings.backup")}</h2>
         <p className="mb-3 text-sm text-muted">{t("settings.backupDesc")}</p>
+        <p className="mb-1.5 mt-1 text-xs font-semibold uppercase tracking-wide text-muted">
+          {t("settings.exportData")}
+        </p>
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => void downloadXlsx()}>
             <FileSpreadsheet size={16} /> {t("settings.backupExcel")}
           </Button>
-          <Button variant="outline" onClick={downloadBackup}>
-            <Download size={16} /> {t("settings.backupJson")}
-          </Button>
           <Button variant="outline" onClick={downloadCsv}>
             <Download size={16} /> {t("settings.backupCsv")}
+          </Button>
+        </div>
+
+        <p className="mb-1.5 mt-4 text-xs font-semibold uppercase tracking-wide text-muted">
+          {t("settings.backupSection")}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={downloadBackup}>
+            <Download size={16} /> {t("settings.backupJson")}
           </Button>
           <Button variant="outline" onClick={() => fileRef.current?.click()}>
             <Upload size={16} /> {t("settings.backupImport")}
