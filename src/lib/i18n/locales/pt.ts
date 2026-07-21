@@ -724,6 +724,7 @@ export const pt = {
     placeholder: "Pergunte sobre suas finanças…",
     send: "Enviar",
     thinking: "Pensando…",
+    newChat: "Nova conversa",
     suggestions: [
       "Quanto gastei esse mês?",
       "Onde dá pra economizar?",

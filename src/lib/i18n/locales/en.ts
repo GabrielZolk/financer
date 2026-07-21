@@ -720,6 +720,7 @@ export const en: Resources = {
     placeholder: "Ask about your finances…",
     send: "Send",
     thinking: "Thinking…",
+    newChat: "New chat",
     suggestions: [
       "How much did I spend this month?",
       "Where can I save?",

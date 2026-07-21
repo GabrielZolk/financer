@@ -723,6 +723,7 @@ export const es: Resources = {
     placeholder: "Pregunta sobre tus finanzas…",
     send: "Enviar",
     thinking: "Pensando…",
+    newChat: "Nueva conversación",
     suggestions: [
       "¿Cuánto gasté este mes?",
       "¿Dónde puedo ahorrar?",

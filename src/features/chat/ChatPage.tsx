@@ -29,11 +29,38 @@ export function ChatPage() {
   const settings = useSettings();
   const sync = useSyncState();
 
-  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [messages, setMessages] = useState<ChatMsg[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("fin.chat") || "[]") as ChatMsg[];
+    } catch {
+      return [];
+    }
+  });
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // persiste a conversa (só quando não está streamando, pra não salvar parcial)
+  useEffect(() => {
+    if (!busy) {
+      try {
+        localStorage.setItem("fin.chat", JSON.stringify(messages.slice(-40)));
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [messages, busy]);
+
+  function newChat() {
+    setMessages([]);
+    setError("");
+    try {
+      localStorage.removeItem("fin.chat");
+    } catch {
+      /* ignore */
+    }
+  }
 
   const signedIn = sync.status === "idle" || sync.status === "syncing";
   const available = settings.aiEnabled && signedIn;
@@ -59,15 +86,22 @@ export function ChatPage() {
     const q = text.trim();
     if (!q || busy) return;
     setError("");
-    const next = [...messages, { role: "user" as const, content: q }];
-    setMessages(next);
+    const base = [...messages, { role: "user" as const, content: q }];
+    // adiciona a bolha do usuário + uma bolha vazia do assistente (streaming)
+    setMessages([...base, { role: "assistant", content: "" }]);
     setInput("");
     setBusy(true);
     try {
-      const reply = await askAssistant(next, snapshot);
-      setMessages((m) => [...m, { role: "assistant", content: reply }]);
+      await askAssistant(base, snapshot, (full) => {
+        setMessages((m) => {
+          const copy = m.slice();
+          copy[copy.length - 1] = { role: "assistant", content: full };
+          return copy;
+        });
+      });
     } catch (e) {
       const code = e instanceof AiError ? e.code : "ai_error";
+      setMessages((m) => m.slice(0, -1)); // tira a bolha vazia do assistente
       setError(t(`ai.err.${code}`, { defaultValue: t("ai.err.ai_error") }));
     } finally {
       setBusy(false);
@@ -100,7 +134,17 @@ export function ChatPage() {
 
   return (
     <div className="flex min-h-[calc(100vh-9rem)] flex-col">
-      <PageHeader title={t("chat.title")} subtitle={t("chat.subtitle")} />
+      <PageHeader
+        title={t("chat.title")}
+        subtitle={t("chat.subtitle")}
+        action={
+          messages.length > 0 ? (
+            <Button variant="ghost" size="sm" onClick={newChat}>
+              {t("chat.newChat")}
+            </Button>
+          ) : undefined
+        }
+      />
 
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto pb-2">
         {messages.length === 0 ? (
@@ -138,17 +182,15 @@ export function ChatPage() {
                     : "rounded-bl-md bg-surface-2 text-text",
                 )}
               >
-                {m.content}
+                {m.content ||
+                  (m.role === "assistant" && busy ? (
+                    <span className="text-muted">{t("chat.thinking")}</span>
+                  ) : (
+                    ""
+                  ))}
               </div>
             </div>
           ))
-        )}
-        {busy && (
-          <div className="flex justify-start">
-            <div className="rounded-2xl rounded-bl-md bg-surface-2 px-3.5 py-2.5 text-sm text-muted">
-              {t("chat.thinking")}
-            </div>
-          </div>
         )}
         {error && <p className="text-center text-sm text-expense">{error}</p>}
       </div>

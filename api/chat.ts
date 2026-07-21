@@ -82,6 +82,7 @@ export default async function handler(req: Request): Promise<Response> {
       },
       body: JSON.stringify({
         model,
+        stream: true,
         temperature: 0.3,
         messages: [{ role: "system", content: system }, ...messages],
       }),
@@ -89,14 +90,16 @@ export default async function handler(req: Request): Promise<Response> {
   } catch {
     return json({ error: "ai_unreachable" }, 502);
   }
-  if (!aiRes.ok) return json({ error: "ai_error", status: aiRes.status }, 502);
-  let out: { choices?: { message?: { content?: string } }[] };
-  try {
-    out = await aiRes.json();
-  } catch {
-    return json({ error: "ai_bad_json" }, 502);
+  if (!aiRes.ok || !aiRes.body) {
+    return json({ error: "ai_error", status: aiRes.status }, 502);
   }
-  const reply = out.choices?.[0]?.message?.content?.trim() ?? "";
-  if (!reply) return json({ error: "ai_empty" }, 502);
-  return json({ reply });
+  // repassa o stream SSE da xAI direto pro cliente (resposta token a token)
+  return new Response(aiRes.body, {
+    status: 200,
+    headers: {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache, no-transform",
+      connection: "keep-alive",
+    },
+  });
 }
