@@ -97,9 +97,6 @@ export function SettingsPage() {
       {/* Idioma */}
       <LanguageCard />
 
-      {/* Câmbio (multi-moeda) */}
-      <CurrencyRatesCard />
-
       {/* Importar extrato */}
       <Card className="mb-4">
         <div className="flex items-center gap-3">
@@ -178,6 +175,9 @@ export function SettingsPage() {
           ))}
         </Select>
       </Card>
+
+      {/* Câmbio (multi-moeda) — depois de escolher a moeda padrão */}
+      <CurrencyRatesCard />
 
       {/* Backup */}
       <Card className="mb-4">

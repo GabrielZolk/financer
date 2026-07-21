@@ -248,7 +248,7 @@ export const en: Resources = {
     newAccount: "New account",
     emptyTitle: "No accounts",
     emptyDesc: "Create accounts, wallets or cards to organize your money.",
-    netWorth: "Net worth",
+    netWorth: "Total balance",
     inAccounts: "in accounts",
     cardDebt: "card debt",
     cards: "cards",
