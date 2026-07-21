@@ -2,7 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useTranslation } from "react-i18next";
-import { Sparkles, ArrowUp, Settings as SettingsIcon } from "lucide-react";
+import {
+  Sparkles,
+  ArrowUp,
+  Settings as SettingsIcon,
+  MessagesSquare,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { db } from "@/db/schema";
 import {
   useAccounts,
@@ -15,8 +22,16 @@ import { useSyncState } from "@/lib/sync";
 import { buildSnapshot } from "@/lib/aiSnapshot";
 import { askAssistant, type ChatMsg } from "@/lib/aiChat";
 import { AiError } from "@/lib/ai";
+import {
+  listConversations,
+  saveConversation,
+  deleteConversation,
+  newId,
+} from "@/lib/chatStore";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/primitives";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export function ChatPage() {
@@ -29,37 +44,52 @@ export function ChatPage() {
   const settings = useSettings();
   const sync = useSyncState();
 
-  const [messages, setMessages] = useState<ChatMsg[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("fin.chat") || "[]") as ChatMsg[];
-    } catch {
-      return [];
-    }
-  });
+  const initial = useMemo(() => listConversations()[0], []);
+  const [activeId, setActiveId] = useState<string>(() => initial?.id ?? newId());
+  const [messages, setMessages] = useState<ChatMsg[]>(
+    () => initial?.messages ?? [],
+  );
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [convOpen, setConvOpen] = useState(false);
+  const [convVersion, setConvVersion] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // persiste a conversa (só quando não está streamando, pra não salvar parcial)
+  // salva a conversa ativa (só quando não está streamando, pra não salvar parcial)
   useEffect(() => {
-    if (!busy) {
-      try {
-        localStorage.setItem("fin.chat", JSON.stringify(messages.slice(-40)));
-      } catch {
-        /* ignore */
-      }
+    if (!busy && messages.length) {
+      saveConversation(activeId, messages);
+      setConvVersion((v) => v + 1);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, busy]);
 
+  const conversations = useMemo(
+    () => listConversations(),
+    // reavalia ao abrir a lista ou após salvar/apagar
+    [convOpen, convVersion],
+  );
+
   function newChat() {
+    setActiveId(newId());
     setMessages([]);
     setError("");
-    try {
-      localStorage.removeItem("fin.chat");
-    } catch {
-      /* ignore */
+    setConvOpen(false);
+  }
+  function openConversation(id: string) {
+    const c = listConversations().find((x) => x.id === id);
+    if (c) {
+      setActiveId(c.id);
+      setMessages(c.messages);
+      setError("");
     }
+    setConvOpen(false);
+  }
+  function removeConversation(id: string) {
+    deleteConversation(id);
+    setConvVersion((v) => v + 1);
+    if (id === activeId) newChat();
   }
 
   const signedIn = sync.status === "idle" || sync.status === "syncing";
@@ -138,13 +168,62 @@ export function ChatPage() {
         title={t("chat.title")}
         subtitle={t("chat.subtitle")}
         action={
-          messages.length > 0 ? (
-            <Button variant="ghost" size="sm" onClick={newChat}>
-              {t("chat.newChat")}
+          <div className="flex gap-1">
+            <Button variant="ghost" size="sm" onClick={() => setConvOpen(true)}>
+              <MessagesSquare size={16} /> {t("chat.conversations")}
             </Button>
-          ) : undefined
+            <Button variant="ghost" size="icon" onClick={newChat} aria-label={t("chat.newChat")}>
+              <Plus size={18} />
+            </Button>
+          </div>
         }
       />
+
+      <Dialog open={convOpen} onOpenChange={setConvOpen}>
+        <DialogContent title={t("chat.conversations")}>
+          <div className="space-y-2">
+            <Button className="w-full" variant="outline" onClick={newChat}>
+              <Plus size={16} /> {t("chat.newChat")}
+            </Button>
+            {conversations.length === 0 ? (
+              <p className="py-2 text-center text-sm text-muted">
+                {t("chat.noConversations")}
+              </p>
+            ) : (
+              <div className="max-h-72 space-y-1 overflow-y-auto">
+                {conversations.map((c) => (
+                  <div
+                    key={c.id}
+                    className={cn(
+                      "flex items-center gap-2 rounded-xl border p-2.5",
+                      c.id === activeId
+                        ? "border-primary bg-primary/5"
+                        : "border-border",
+                    )}
+                  >
+                    <button
+                      onClick={() => openConversation(c.id)}
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <p className="truncate text-sm font-medium">{c.title}</p>
+                      <p className="text-xs text-muted">
+                        {formatDate(new Date(c.updatedAt).toISOString().slice(0, 10))}
+                      </p>
+                    </button>
+                    <button
+                      onClick={() => removeConversation(c.id)}
+                      className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-expense"
+                      aria-label={t("common.delete")}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto pb-2">
         {messages.length === 0 ? (

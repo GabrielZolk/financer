@@ -725,6 +725,8 @@ export const pt = {
     send: "Enviar",
     thinking: "Pensando…",
     newChat: "Nova conversa",
+    conversations: "Conversas",
+    noConversations: "Nenhuma conversa ainda.",
     suggestions: [
       "Quanto gastei esse mês?",
       "Onde dá pra economizar?",

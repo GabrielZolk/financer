@@ -724,6 +724,8 @@ export const es: Resources = {
     send: "Enviar",
     thinking: "Pensando…",
     newChat: "Nueva conversación",
+    conversations: "Conversaciones",
+    noConversations: "Aún no hay conversaciones.",
     suggestions: [
       "¿Cuánto gasté este mes?",
       "¿Dónde puedo ahorrar?",
