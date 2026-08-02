@@ -1,15 +1,21 @@
 import { describe, it, expect } from "vitest";
-import type { IncomingMessage, ServerResponse } from "node:http";
-import { toNode } from "./adapter";
-import chatHandler from "../api/chat";
+// o adapter vive INLINE em cada function (a Vercel não empacota imports de
+// fora de api/) — importamos o de api/chat, que é o mesmo código dos 5.
+import chatHandler, { toNode } from "../api/chat";
+import aiHandler from "../api/ai";
+import categorizeHandler from "../api/categorize";
+import insightsHandler from "../api/insights";
+import receiptHandler from "../api/receipt";
+
+type AnyHandler = (req: never, res: never) => Promise<void>;
 
 function fakeReq(o: {
   method?: string;
   url?: string;
   headers?: Record<string, string>;
   body?: string;
-}): IncomingMessage {
-  const req = {
+}) {
+  return {
     method: o.method ?? "GET",
     url: o.url ?? "/api/test",
     headers: { host: "app.example", ...(o.headers ?? {}) },
@@ -17,17 +23,10 @@ function fakeReq(o: {
       if (o.body) yield Buffer.from(o.body);
     },
   };
-  return req as unknown as IncomingMessage;
 }
 
-interface FakeRes extends ServerResponse {
-  _chunks: Buffer[];
-  _headers: Record<string, string>;
-  text(): string;
-}
-
-function fakeRes(): FakeRes {
-  const res = {
+function fakeRes() {
+  return {
     statusCode: 0,
     headersSent: false,
     _chunks: [] as Buffer[],
@@ -38,8 +37,8 @@ function fakeRes(): FakeRes {
     flushHeaders() {
       this.headersSent = true;
     },
-    write(c: Uint8Array | string) {
-      this._chunks.push(Buffer.from(c as Uint8Array));
+    write(c: Uint8Array) {
+      this._chunks.push(Buffer.from(c));
       return true;
     },
     end(c?: Uint8Array | string) {
@@ -49,12 +48,16 @@ function fakeRes(): FakeRes {
       return Buffer.concat(this._chunks).toString("utf8");
     },
   };
-  return res as unknown as FakeRes;
 }
+
+type Req = ReturnType<typeof fakeReq>;
+type Res = ReturnType<typeof fakeRes>;
+const call = (h: unknown, req: Req, res: Res) =>
+  (h as (a: Req, b: Res) => Promise<void>)(req, res);
 
 describe("toNode — ponte (req,res) do Node ↔ handler Web", () => {
   it("entrega método, headers e corpo pro handler estilo Request", async () => {
-    let seen: { method: string; auth: string | null; body: unknown } | null = null;
+    let seen: unknown = null;
     const handler = toNode(async (req) => {
       seen = {
         method: req.method,
@@ -68,7 +71,8 @@ describe("toNode — ponte (req,res) do Node ↔ handler Web", () => {
     });
 
     const res = fakeRes();
-    await handler(
+    await call(
+      handler,
       fakeReq({
         method: "POST",
         headers: { authorization: "Bearer abc" },
@@ -77,11 +81,7 @@ describe("toNode — ponte (req,res) do Node ↔ handler Web", () => {
       res,
     );
 
-    expect(seen).toEqual({
-      method: "POST",
-      auth: "Bearer abc",
-      body: { hi: 1 },
-    });
+    expect(seen).toEqual({ method: "POST", auth: "Bearer abc", body: { hi: 1 } });
     expect(res.statusCode).toBe(201);
     expect(res._headers["content-type"]).toBe("application/json");
     expect(res.text()).toBe('{"ok":true}');
@@ -89,10 +89,9 @@ describe("toNode — ponte (req,res) do Node ↔ handler Web", () => {
 
   it("aceita o corpo já parseado pelo runtime (req.body)", async () => {
     const handler = toNode(async (req) => Response.json(await req.json()));
-    const req = fakeReq({ method: "POST" });
-    (req as IncomingMessage & { body?: unknown }).body = { pre: "parsed" };
+    const req = { ...fakeReq({ method: "POST" }), body: { pre: "parsed" } };
     const res = fakeRes();
-    await handler(req, res);
+    await call(handler, req as unknown as Req, res);
     expect(res.text()).toBe('{"pre":"parsed"}');
   });
 
@@ -111,7 +110,7 @@ describe("toNode — ponte (req,res) do Node ↔ handler Web", () => {
       });
     });
     const res = fakeRes();
-    await handler(fakeReq({ method: "POST" }), res);
+    await call(handler, fakeReq({ method: "POST" }), res);
     expect(res._headers["content-type"]).toBe("text/event-stream");
     expect(res._chunks.length).toBe(2);
     expect(res.text()).toBe("data: um\n\ndata: dois\n\n");
@@ -122,25 +121,32 @@ describe("toNode — ponte (req,res) do Node ↔ handler Web", () => {
       throw new Error("boom");
     });
     const res = fakeRes();
-    await handler(fakeReq({ method: "POST" }), res);
+    await call(handler, fakeReq({ method: "POST" }), res);
     expect(res.statusCode).toBe(500);
     expect(res.text()).toContain("handler_failed");
   });
 });
 
-describe("api/chat com a assinatura real do runtime Node", () => {
-  it("responde 405 em GET (sem estourar req.headers.get)", async () => {
+// guarda contra a regressão que quebrou a produção: os 5 endpoints precisam
+// aceitar a assinatura (req,res) do Node sem estourar em req.headers.get
+const ENDPOINTS: [string, unknown][] = [
+  ["ai", aiHandler],
+  ["chat", chatHandler],
+  ["categorize", categorizeHandler],
+  ["insights", insightsHandler],
+  ["receipt", receiptHandler],
+];
+
+describe.each(ENDPOINTS)("api/%s com a assinatura real do Node", (_name, h) => {
+  it("405 em GET", async () => {
     const res = fakeRes();
-    await chatHandler(fakeReq({ method: "GET" }), res);
+    await call(h as AnyHandler, fakeReq({ method: "GET" }), res);
     expect(res.statusCode).toBe(405);
   });
 
-  it("responde 401 sem token", async () => {
+  it("401 em POST sem token", async () => {
     const res = fakeRes();
-    await chatHandler(
-      fakeReq({ method: "POST", body: JSON.stringify({ messages: [] }) }),
-      res,
-    );
+    await call(h as AnyHandler, fakeReq({ method: "POST", body: "{}" }), res);
     expect(res.statusCode).toBe(401);
     expect(res.text()).toContain("unauthorized");
   });

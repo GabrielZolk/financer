@@ -5,9 +5,86 @@
  * AI_MOCK=1 categoriza por palavra-chave (sem chamar a xAI).
  */
 
-import { toNode } from "../server/adapter";
-
 export const config = { runtime: "nodejs" };
+
+/**
+ * Ponte (req,res) do runtime Node da Vercel <-> handler estilo Web.
+ * Fica INLINE de propósito: a Vercel compila cada arquivo de api/ isolado e
+ * não empacota imports de fora da pasta — um módulo compartilhado sumia do
+ * bundle (ERR_MODULE_NOT_FOUND em produção).
+ * Mantido idêntico nos 5 endpoints; testado em server/adapter.test.ts.
+ */
+type NodeReq = AsyncIterable<Buffer> & {
+  method?: string;
+  url?: string;
+  headers: Record<string, string | string[] | undefined>;
+  body?: unknown;
+};
+type NodeRes = {
+  statusCode: number;
+  headersSent: boolean;
+  setHeader(k: string, v: string): void;
+  flushHeaders?(): void;
+  write(c: Uint8Array): boolean;
+  end(c?: Uint8Array | string): void;
+};
+
+export function toNode(handler: (req: Request) => Promise<Response>) {
+  return async (req: NodeReq, res: NodeRes): Promise<void> => {
+    try {
+      const method = req.method ?? "GET";
+      const headers = new Headers();
+      for (const [k, v] of Object.entries(req.headers)) {
+        if (v === undefined) continue;
+        if (Array.isArray(v)) v.forEach((one) => headers.append(k, one));
+        else headers.set(k, v);
+      }
+      let body: string | undefined;
+      if (method !== "GET" && method !== "HEAD") {
+        if (typeof req.body === "string") body = req.body;
+        else if (req.body && typeof req.body === "object")
+          body = JSON.stringify(req.body);
+        else {
+          const chunks: Buffer[] = [];
+          for await (const c of req)
+            chunks.push(typeof c === "string" ? Buffer.from(c) : c);
+          if (chunks.length) body = Buffer.concat(chunks).toString("utf8");
+        }
+      }
+      const host = (req.headers.host as string) || "localhost";
+      const url = new URL(req.url ?? "/", `https://${host}`);
+
+      const out = await handler(new Request(url, { method, headers, body }));
+
+      res.statusCode = out.status;
+      out.headers.forEach((value, key) => {
+        if (key === "content-encoding" || key === "content-length") return;
+        res.setHeader(key, value);
+      });
+      res.flushHeaders?.();
+      if (!out.body) {
+        res.end();
+        return;
+      }
+      const reader = out.body.getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        res.write(value);
+      }
+      res.end();
+    } catch (e) {
+      // nunca deixa a function morrer sem resposta (500 opaco)
+      const message = e instanceof Error ? e.message : "unknown";
+      if (!res.headersSent) {
+        res.statusCode = 500;
+        res.setHeader("content-type", "application/json");
+      }
+      res.end(JSON.stringify({ error: "handler_failed", message }));
+    }
+  };
+}
+
 
 interface Cat {
   id: string;
