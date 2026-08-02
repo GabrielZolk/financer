@@ -4,6 +4,8 @@
  * Mesma segurança do /api/ai. AI_MOCK=1 devolve um exemplo (sem chamar a xAI).
  */
 
+import { toNode } from "../server/adapter";
+
 export const config = { runtime: "nodejs" };
 
 interface NamedRef {
@@ -28,7 +30,7 @@ function json(data: unknown, status = 200): Response {
 }
 const env = (k: string) => process.env[k];
 
-export default async function handler(req: Request): Promise<Response> {
+async function handleRequest(req: Request): Promise<Response> {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
@@ -166,3 +168,5 @@ function sanitize(
         : today,
   };
 }
+
+export default toNode(handleRequest);

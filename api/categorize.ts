@@ -5,6 +5,8 @@
  * AI_MOCK=1 categoriza por palavra-chave (sem chamar a xAI).
  */
 
+import { toNode } from "../server/adapter";
+
 export const config = { runtime: "nodejs" };
 
 interface Cat {
@@ -20,7 +22,7 @@ function json(data: unknown, status = 200): Response {
 }
 const env = (k: string) => process.env[k];
 
-export default async function handler(req: Request): Promise<Response> {
+async function handleRequest(req: Request): Promise<Response> {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
@@ -129,3 +131,5 @@ function mockCat(desc: string, categories: Cat[]): string | null {
   }
   return null;
 }
+
+export default toNode(handleRequest);

@@ -14,6 +14,8 @@
  *   (SUPABASE_URL / SUPABASE_ANON_KEY são lidos, com fallback pros VITE_*)
  */
 
+import { toNode } from "../server/adapter";
+
 export const config = { runtime: "nodejs" };
 
 interface ParsedTx {
@@ -39,7 +41,7 @@ function json(data: unknown, status = 200): Response {
 
 const env = (k: string) => process.env[k];
 
-export default async function handler(req: Request): Promise<Response> {
+async function handleRequest(req: Request): Promise<Response> {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   // 1) autenticação: valida o token do Supabase (só logado usa a IA)
@@ -219,3 +221,5 @@ function shiftDay(iso: string, days: number): string {
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
+
+export default toNode(handleRequest);

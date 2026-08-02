@@ -5,6 +5,8 @@
  * token do Supabase. AI_MOCK=1 responde sem chamar a xAI.
  */
 
+import { toNode } from "../server/adapter";
+
 export const config = { runtime: "nodejs" };
 
 interface Msg {
@@ -124,7 +126,7 @@ function mockReply(messages: Msg[], snapshot: unknown) {
   };
 }
 
-export default async function handler(req: Request): Promise<Response> {
+async function handleRequest(req: Request): Promise<Response> {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   const token = (req.headers.get("authorization") || "").replace(
@@ -205,3 +207,5 @@ export default async function handler(req: Request): Promise<Response> {
     },
   });
 }
+
+export default toNode(handleRequest);
