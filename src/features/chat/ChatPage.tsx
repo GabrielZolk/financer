@@ -9,6 +9,11 @@ import {
   MessagesSquare,
   Plus,
   Trash2,
+  Target,
+  Wallet,
+  ArrowDownLeft,
+  Check,
+  X,
 } from "lucide-react";
 import { db } from "@/db/schema";
 import {
@@ -28,10 +33,17 @@ import {
   deleteConversation,
   newId,
 } from "@/lib/chatStore";
+import {
+  applyAction,
+  type ActionCtx,
+  type ChatAction,
+} from "@/lib/aiActions";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/primitives";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { TransactionForm } from "@/features/transactions/TransactionForm";
 import { formatDate } from "@/lib/format";
+import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 export function ChatPage() {
@@ -54,6 +66,12 @@ export function ChatPage() {
   const [error, setError] = useState("");
   const [convOpen, setConvOpen] = useState(false);
   const [convVersion, setConvVersion] = useState(0);
+  const [pending, setPending] = useState<ChatAction | null>(null);
+  const [applying, setApplying] = useState(false);
+  const [txOpen, setTxOpen] = useState(false);
+  const [txPrefill, setTxPrefill] = useState<
+    Extract<ChatAction, { type: "transaction" }> | null
+  >(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // salva a conversa ativa (só quando não está streamando, pra não salvar parcial)
@@ -75,6 +93,7 @@ export function ChatPage() {
     setActiveId(newId());
     setMessages([]);
     setError("");
+    setPending(null);
     setConvOpen(false);
   }
   function openConversation(id: string) {
@@ -83,6 +102,7 @@ export function ChatPage() {
       setActiveId(c.id);
       setMessages(c.messages);
       setError("");
+      setPending(null);
     }
     setConvOpen(false);
   }
@@ -112,29 +132,91 @@ export function ChatPage() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages, busy]);
 
+  const actionCtx: ActionCtx = useMemo(
+    () => ({
+      accounts: accounts.map((a) => ({
+        id: a.id,
+        name: a.name,
+        archived: a.archived,
+      })),
+      categories: categories.map((c) => ({
+        id: c.id,
+        name: c.name,
+        kind: c.kind,
+      })),
+      today: new Date().toISOString().slice(0, 10),
+    }),
+    [accounts, categories],
+  );
+
   async function send(text: string) {
     const q = text.trim();
     if (!q || busy) return;
     setError("");
+    setPending(null);
     const base = [...messages, { role: "user" as const, content: q }];
     // adiciona a bolha do usuário + uma bolha vazia do assistente (streaming)
     setMessages([...base, { role: "assistant", content: "" }]);
     setInput("");
     setBusy(true);
     try {
-      await askAssistant(base, snapshot, (full) => {
-        setMessages((m) => {
-          const copy = m.slice();
-          copy[copy.length - 1] = { role: "assistant", content: full };
-          return copy;
-        });
-      });
+      const answer = await askAssistant(
+        base,
+        snapshot,
+        (full) => {
+          setMessages((m) => {
+            const copy = m.slice();
+            copy[copy.length - 1] = { role: "assistant", content: full };
+            return copy;
+          });
+        },
+        actionCtx,
+      );
+      if (answer.action) {
+        // se o modelo só chamou a ferramenta (sem texto), põe uma frase-guia
+        if (!answer.text.trim()) {
+          setMessages((m) => {
+            const copy = m.slice();
+            copy[copy.length - 1] = {
+              role: "assistant",
+              content: t("chat.actionIntro"),
+            };
+            return copy;
+          });
+        }
+        setPending(answer.action);
+      }
     } catch (e) {
       const code = e instanceof AiError ? e.code : "ai_error";
       setMessages((m) => m.slice(0, -1)); // tira a bolha vazia do assistente
       setError(t(`ai.err.${code}`, { defaultValue: t("ai.err.ai_error") }));
     } finally {
       setBusy(false);
+    }
+  }
+
+  /** Confirma a ação proposta. Lançamento abre o formulário; o resto grava. */
+  async function confirmAction() {
+    if (!pending || applying) return;
+    if (pending.type === "transaction") {
+      setTxPrefill(pending);
+      setPending(null);
+      setTxOpen(true);
+      return;
+    }
+    setApplying(true);
+    try {
+      await applyAction(pending);
+      const done =
+        pending.type === "goal"
+          ? t("chat.goalCreated", { name: pending.name })
+          : t("chat.budgetCreated", { name: pending.categoryName });
+      setMessages((m) => [...m, { role: "assistant", content: done }]);
+      setPending(null);
+    } catch {
+      setError(t("chat.actionFailed"));
+    } finally {
+      setApplying(false);
     }
   }
 
@@ -161,6 +243,39 @@ export function ChatPage() {
   }
 
   const suggestions = t("chat.suggestions", { returnObjects: true }) as string[];
+
+  const cur = settings.baseCurrency;
+  const actionCard = (() => {
+    if (!pending) return null;
+    if (pending.type === "goal")
+      return {
+        icon: Target,
+        title: t("chat.act.goal", { name: pending.name }),
+        detail:
+          formatMoney(pending.targetCents, cur) +
+          (pending.deadline ? ` · ${formatDate(pending.deadline)}` : ""),
+        cta: t("chat.act.goalCta"),
+      };
+    if (pending.type === "budget")
+      return {
+        icon: Wallet,
+        title: t("chat.act.budget", { name: pending.categoryName }),
+        detail: t("chat.act.budgetDetail", {
+          value: formatMoney(pending.limitCents, cur),
+        }),
+        cta: t("chat.act.budgetCta"),
+      };
+    const catName = categories.find((c) => c.id === pending.categoryId)?.name;
+    const accName = accounts.find((a) => a.id === pending.accountId)?.name;
+    return {
+      icon: ArrowDownLeft,
+      title: `${pending.description || t("chat.act.tx")} · ${formatMoney(pending.amountCents, cur)}`,
+      detail: [formatDate(pending.date), catName, accName]
+        .filter(Boolean)
+        .join(" · "),
+      cta: t("chat.act.txCta"),
+    };
+  })();
 
   return (
     <div className="flex min-h-[calc(100vh-9rem)] flex-col">
@@ -271,6 +386,33 @@ export function ChatPage() {
             </div>
           ))
         )}
+        {actionCard && (
+          <div className="rounded-2xl border border-primary/40 bg-primary/5 p-3.5">
+            <div className="mb-1.5 flex items-center gap-1.5 text-primary">
+              <actionCard.icon size={15} />
+              <p className="text-[11px] font-semibold uppercase tracking-wide">
+                {t("chat.act.label")}
+              </p>
+            </div>
+            <p className="font-medium">{actionCard.title}</p>
+            {actionCard.detail && (
+              <p className="text-sm text-muted">{actionCard.detail}</p>
+            )}
+            <div className="mt-3 flex gap-2">
+              <Button size="sm" onClick={confirmAction} disabled={applying}>
+                <Check size={16} /> {actionCard.cta}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setPending(null)}
+                disabled={applying}
+              >
+                <X size={16} /> {t("common.cancel")}
+              </Button>
+            </div>
+          </div>
+        )}
         {error && <p className="text-center text-sm text-expense">{error}</p>}
       </div>
 
@@ -303,6 +445,13 @@ export function ChatPage() {
           <ArrowUp size={20} />
         </button>
       </form>
+
+      <TransactionForm
+        open={txOpen}
+        onOpenChange={setTxOpen}
+        defaultKind={txPrefill?.kind ?? "expense"}
+        prefill={txPrefill ?? undefined}
+      />
     </div>
   );
 }

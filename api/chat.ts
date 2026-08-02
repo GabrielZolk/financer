@@ -20,6 +20,110 @@ function json(data: unknown, status = 200): Response {
 }
 const env = (k: string) => process.env[k];
 
+/**
+ * Ferramentas que o assistente pode *propor*. Nada é executado no servidor:
+ * o app mostra um cartão de confirmação e só age se o usuário aceitar.
+ */
+const TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "criar_meta",
+      description:
+        "Propõe criar uma meta de economia. Use quando o usuário pedir para criar/definir uma meta ou objetivo de guardar dinheiro.",
+      parameters: {
+        type: "object",
+        properties: {
+          nome: { type: "string", description: "Nome curto da meta, ex.: 'Carro'" },
+          valorAlvo: {
+            type: "number",
+            description: "Valor alvo na moeda do retrato (5000 = cinco mil)",
+          },
+          dataAlvo: {
+            type: "string",
+            description: "Prazo opcional, formato YYYY-MM-DD",
+          },
+        },
+        required: ["nome", "valorAlvo"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "criar_orcamento",
+      description:
+        "Propõe definir o orçamento (limite de gasto) mensal de uma categoria existente.",
+      parameters: {
+        type: "object",
+        properties: {
+          categoria: {
+            type: "string",
+            description:
+              "Nome EXATO de uma categoria que aparece no retrato financeiro",
+          },
+          valorLimite: {
+            type: "number",
+            description: "Limite mensal na moeda do retrato",
+          },
+        },
+        required: ["categoria", "valorLimite"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "criar_lancamento",
+      description:
+        "Propõe registrar uma despesa ou receita. Use quando o usuário disser que gastou/recebeu algo e quiser lançar.",
+      parameters: {
+        type: "object",
+        properties: {
+          tipo: { type: "string", enum: ["despesa", "receita"] },
+          valor: { type: "number", description: "Valor na moeda do retrato" },
+          descricao: { type: "string" },
+          categoria: {
+            type: "string",
+            description: "Nome de uma categoria existente (opcional)",
+          },
+          conta: {
+            type: "string",
+            description: "Nome de uma conta/cartão existente (opcional)",
+          },
+          data: { type: "string", description: "YYYY-MM-DD (opcional)" },
+        },
+        required: ["tipo", "valor", "descricao"],
+      },
+    },
+  },
+];
+
+/** Resposta falsa (AI_MOCK=1) — permite testar o fluxo sem gastar crédito. */
+function mockReply(messages: Msg[], snapshot: unknown) {
+  const s = snapshot as { saldoTotal?: number; currency?: string };
+  const last = (messages[messages.length - 1]?.content || "").toLowerCase();
+  const num = Number(
+    (last.match(/[\d.]+,\d{2}|\d[\d.]*/)?.[0] || "")
+      .replace(/\./g, "")
+      .replace(",", "."),
+  );
+  if (/meta|objetivo|juntar|guardar/.test(last) && num > 0) {
+    return {
+      reply: "(modo teste) Posso criar essa meta pra você:",
+      action: {
+        name: "criar_meta",
+        args: { nome: "Meta do teste", valorAlvo: num },
+      },
+    };
+  }
+  return {
+    reply:
+      `(modo teste) Seu saldo total é ${s.currency ?? "BRL"} ${s.saldoTotal ?? 0}. ` +
+      "Ligue a chave real da xAI pra respostas completas sobre suas finanças.",
+  };
+}
+
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
@@ -50,14 +154,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (!messages.length) return json({ error: "no_messages" }, 400);
   const snapshot = body.snapshot ?? {};
 
-  if (env("AI_MOCK") === "1") {
-    const s = snapshot as { saldoTotal?: number; currency?: string };
-    return json({
-      reply:
-        `(modo teste) Seu saldo total é ${s.currency ?? "BRL"} ${s.saldoTotal ?? 0}. ` +
-        "Ligue a chave real da xAI pra respostas completas sobre suas finanças.",
-    });
-  }
+  if (env("AI_MOCK") === "1") return json(mockReply(messages, snapshot));
 
   const key = env("XAI_API_KEY");
   if (!key) return json({ error: "ai_not_configured" }, 503);
@@ -68,6 +165,9 @@ export default async function handler(req: Request): Promise<Response> {
     "Seja direto, amigável e conciso. Valores na moeda do retrato. Use listas curtas quando ajudar.",
     "Se o dado não estiver no retrato, diga que não tem essa informação — não invente números.",
     "Você NÃO dá aconselhamento financeiro profissional; ofereça observações e ideias práticas, sem recomendar investimentos.",
+    "AÇÕES: quando o usuário PEDIR para criar/registrar algo (meta, orçamento, lançamento), chame a ferramenta correspondente em vez de explicar o caminho na interface.",
+    "Ao chamar uma ferramenta, escreva também uma frase curta apresentando a proposta. NUNCA diga que já criou/salvou: o app mostra um cartão e o usuário confirma.",
+    "Use apenas nomes de categorias e contas que aparecem no retrato. Uma ferramenta por resposta.",
     "Retrato financeiro do usuário (JSON):",
     JSON.stringify(snapshot),
   ].join("\n");
@@ -84,6 +184,8 @@ export default async function handler(req: Request): Promise<Response> {
         model,
         stream: true,
         temperature: 0.3,
+        tools: TOOLS,
+        tool_choice: "auto",
         messages: [{ role: "system", content: system }, ...messages],
       }),
     });
