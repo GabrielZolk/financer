@@ -41,6 +41,12 @@ export const en: Resources = {
     settings: "Settings",
     more: "More",
   },
+  account: {
+    menu: "Your account",
+    noAccount: "No account",
+    localOnly: "No account (this device only)",
+    data: "Backup and data",
+  },
   sync: {
     title: "Cloud sync",
     subtitle: "Sign in to keep the same data on your phone and computer.",

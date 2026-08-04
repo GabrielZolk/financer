@@ -39,6 +39,12 @@ export const pt = {
     settings: "Ajustes",
     more: "Mais",
   },
+  account: {
+    menu: "Sua conta",
+    noAccount: "Sem conta",
+    localOnly: "Sem conta (só neste aparelho)",
+    data: "Backup e dados",
+  },
   sync: {
     title: "Sincronização na nuvem",
     subtitle: "Entre para manter os mesmos dados no celular e no PC.",

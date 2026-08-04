@@ -41,6 +41,12 @@ export const es: Resources = {
     settings: "Ajustes",
     more: "Más",
   },
+  account: {
+    menu: "Tu cuenta",
+    noAccount: "Sin cuenta",
+    localOnly: "Sin cuenta (solo en este dispositivo)",
+    data: "Copia de seguridad y datos",
+  },
   sync: {
     title: "Sincronización en la nube",
     subtitle: "Inicia sesión para tener los mismos datos en el móvil y el PC.",

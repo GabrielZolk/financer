@@ -14,10 +14,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SyncBadge } from "@/features/sync/SyncBadge";
 import { FeitoOverlay } from "@/components/feedback/Feito";
 import { PrivacyControl } from "@/features/privacy/PrivacyControl";
 import { FeedbackButton } from "@/features/feedback/FeedbackButton";
+import { UserMenu } from "@/features/account/UserMenu";
 
 const NAV: { to: string; key: string; icon: LucideIcon; end?: boolean }[] = [
   { to: "/", key: "nav.home", icon: LayoutDashboard, end: true },
@@ -73,9 +73,6 @@ export function AppShell() {
             </NavLink>
           ))}
         </nav>
-        <div className="px-2">
-          <SyncBadge />
-        </div>
       </aside>
 
       {/* Conteúdo */}
@@ -84,6 +81,7 @@ export function AppShell() {
           <div className="mb-2 flex items-center justify-end gap-2">
             <FeedbackButton />
             <PrivacyControl />
+            <UserMenu />
           </div>
           <Outlet />
         </div>
