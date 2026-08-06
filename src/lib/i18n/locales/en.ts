@@ -579,6 +579,10 @@ export const en: Resources = {
     mergeHint: "Pick an existing one or type a new name.",
   },
   imp: {
+    cta: "Import",
+    exportXlsx: "Export Excel",
+    dropTitle: "Drop the statement here",
+    dropHint: "CSV or OFX · you review before saving",
     title: "Import statement",
     intro:
       "Import a CSV or OFX statement from your bank. Negative amounts become expenses; positive, income.",

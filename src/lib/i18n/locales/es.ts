@@ -582,6 +582,10 @@ export const es: Resources = {
     mergeHint: "Puedes elegir una existente o escribir un nombre nuevo.",
   },
   imp: {
+    cta: "Importar",
+    exportXlsx: "Exportar Excel",
+    dropTitle: "Suelta el extracto aquí",
+    dropHint: "CSV u OFX · lo revisas antes de guardar",
     title: "Importar extracto",
     intro:
       "Importa un extracto en CSV u OFX de tu banco. Los importes negativos son gastos; los positivos, ingresos.",

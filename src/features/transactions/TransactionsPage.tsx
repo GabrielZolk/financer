@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Download, Upload } from "lucide-react";
 import {
   useAccounts,
   useCategories,
@@ -13,6 +13,8 @@ import { Button, Card, EmptyState, Input, Select } from "@/components/ui/primiti
 import { PageHeader } from "@/components/PageHeader";
 import { TransactionItem } from "./TransactionItem";
 import { TransactionForm } from "./TransactionForm";
+import { ImportDialog } from "@/features/import/ImportDialog";
+import { downloadXlsx } from "@/lib/backup";
 import type { Transaction } from "@/db/types";
 import { formatMoney } from "@/lib/money";
 import { formatDate } from "@/lib/format";
@@ -30,6 +32,69 @@ export function TransactionsPage() {
   const [onlyReimb, setOnlyReimb] = useState(false);
   // tag inicial pode vir da URL (ex.: vindo do gerenciador de Tags)
   const [tag, setTag] = useState(params.get("tag") ?? "");
+
+  const [importOpen, setImportOpen] = useState(false);
+  const [droppedFile, setDroppedFile] = useState<File | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const dragDepth = useRef(0);
+
+  /**
+   * Arrastar o extrato pra qualquer lugar desta tela abre a revisão do import.
+   * O alvo só aparece durante o arraste — não ocupa espaço nenhum.
+   */
+  useEffect(() => {
+    const hasFiles = (e: DragEvent) =>
+      Array.from(e.dataTransfer?.types ?? []).includes("Files");
+    const onEnter = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragDepth.current += 1;
+      setDragging(true);
+    };
+    const onOver = (e: DragEvent) => {
+      if (hasFiles(e)) e.preventDefault();
+    };
+    const onLeave = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      dragDepth.current = Math.max(0, dragDepth.current - 1);
+      if (dragDepth.current === 0) setDragging(false);
+    };
+    const onDrop = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragDepth.current = 0;
+      setDragging(false);
+      const file = e.dataTransfer?.files?.[0];
+      if (!file) return;
+      setDroppedFile(file);
+      setImportOpen(true);
+    };
+    window.addEventListener("dragenter", onEnter);
+    window.addEventListener("dragover", onOver);
+    window.addEventListener("dragleave", onLeave);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragenter", onEnter);
+      window.removeEventListener("dragover", onOver);
+      window.removeEventListener("dragleave", onLeave);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, []);
+
+  function openImport() {
+    setDroppedFile(null);
+    setImportOpen(true);
+  }
+
+  async function exportXlsx() {
+    setExporting(true);
+    try {
+      await downloadXlsx();
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const filter: TransactionFilter = {
     search: search || undefined,
@@ -114,10 +179,42 @@ export function TransactionsPage() {
       <PageHeader
         title={t("tx.title")}
         action={
-          <Button onClick={openNew}>
-            <Plus size={18} /> {t("tx.new")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={openImport}>
+              <Download size={16} />
+              <span className="hidden sm:inline">{t("imp.cta")}</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => void exportXlsx()}
+              disabled={exporting}
+              title={t("imp.exportXlsx")}
+              aria-label={t("imp.exportXlsx")}
+            >
+              <Upload size={16} className={exporting ? "animate-pulse" : ""} />
+            </Button>
+            <Button onClick={openNew}>
+              <Plus size={18} /> {t("tx.new")}
+            </Button>
+          </div>
         }
+      />
+
+      {dragging && (
+        <div className="fixed inset-2 z-50 grid place-items-center rounded-2xl border-2 border-dashed border-primary bg-primary/10 backdrop-blur-sm">
+          <div className="text-center">
+            <Download size={34} className="mx-auto mb-2 text-primary" />
+            <p className="font-semibold">{t("imp.dropTitle")}</p>
+            <p className="text-sm text-muted">{t("imp.dropHint")}</p>
+          </div>
+        </div>
+      )}
+
+      <ImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        initialFile={droppedFile}
       />
 
       {/* Reembolsos pendentes (a receber) */}

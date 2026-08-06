@@ -25,9 +25,12 @@ type Mode = "idle" | "csv" | "ready" | "done";
 export function ImportDialog({
   open,
   onOpenChange,
+  initialFile,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  /** arquivo já escolhido fora do diálogo (ex.: arrastado pra tela) */
+  initialFile?: File | null;
 }) {
   const { t } = useTranslation();
   const accounts = useAccounts(true);
@@ -69,9 +72,7 @@ export function ImportDialog({
     setAiError("");
   }
 
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  async function loadFile(file: File) {
     setError("");
     setFileName(file.name);
     if (!accountId && accounts[0]) setAccountId(accounts[0].id);
@@ -87,8 +88,20 @@ export function ImportDialog({
       setCols(guessCsvColumns(rows));
       setMode("csv");
     }
+  }
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await loadFile(file);
     e.target.value = "";
   }
+
+  // arquivo arrastado pra tela: já entra direto na revisão
+  useEffect(() => {
+    if (open && initialFile) void loadFile(initialFile);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialFile]);
 
   // lançamentos derivados (preview)
   const parsed: ParsedTx[] = useMemo(() => {

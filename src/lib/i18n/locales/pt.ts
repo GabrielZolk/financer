@@ -583,6 +583,10 @@ export const pt = {
     mergeHint: "Pode escolher uma existente ou digitar um nome novo.",
   },
   imp: {
+    cta: "Importar",
+    exportXlsx: "Exportar Excel",
+    dropTitle: "Solte o extrato aqui",
+    dropHint: "CSV ou OFX · você revisa antes de salvar",
     title: "Importar extrato",
     intro:
       "Importe um extrato em CSV ou OFX do seu banco. Valores negativos viram despesas; positivos, receitas.",
