@@ -582,6 +582,9 @@ export const es: Resources = {
     mergeHint: "Puedes elegir una existente o escribir un nombre nuevo.",
   },
   imp: {
+    learned: "{{count}} rellenada(s) por tu historial",
+    categorizeRest: "Categorizar {{count}} con IA",
+    allCategorized: "Todo categorizado",
     cta: "Importar",
     exportXlsx: "Exportar Excel",
     dropTitle: "Suelta el extracto aquí",

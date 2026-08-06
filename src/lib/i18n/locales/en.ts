@@ -579,6 +579,9 @@ export const en: Resources = {
     mergeHint: "Pick an existing one or type a new name.",
   },
   imp: {
+    learned: "{{count}} filled from your history",
+    categorizeRest: "Categorize {{count}} with AI",
+    allCategorized: "All categorized",
     cta: "Import",
     exportXlsx: "Export Excel",
     dropTitle: "Drop the statement here",

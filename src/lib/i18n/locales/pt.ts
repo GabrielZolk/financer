@@ -583,6 +583,9 @@ export const pt = {
     mergeHint: "Pode escolher uma existente ou digitar um nome novo.",
   },
   imp: {
+    learned: "{{count}} preenchida(s) pelo seu histórico",
+    categorizeRest: "Categorizar {{count}} com IA",
+    allCategorized: "Tudo categorizado",
     cta: "Importar",
     exportXlsx: "Exportar Excel",
     dropTitle: "Solte o extrato aqui",

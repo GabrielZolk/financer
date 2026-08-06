@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Upload, FileText, Sparkles } from "lucide-react";
+import { Upload, FileText, Sparkles, Wand2 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button, Label, Select } from "@/components/ui/primitives";
 import { bulkCreate } from "@/db/repo";
@@ -8,6 +8,7 @@ import { useAccounts, useAllTransactions, useCategories } from "@/db/hooks";
 import { useSettings } from "@/lib/settings";
 import { useSyncState } from "@/lib/sync";
 import { categorizeImport } from "@/lib/aiCategorize";
+import { learnRules, applyLearnedRules } from "@/lib/autoCategory";
 import { AiError } from "@/lib/ai";
 import { formatMoney } from "@/lib/money";
 import {
@@ -118,22 +119,49 @@ export function ImportDialog({
     () => new Map(categories.map((c) => [c.id, c.name])),
     [categories],
   );
-  // ao trocar de arquivo/mapeamento, zera as categorias sugeridas
+  // regras aprendidas do próprio histórico (grátis, sem IA)
+  const learned = useMemo(() => learnRules(allTx), [allTx]);
+
+  /**
+   * Ao trocar de arquivo/mapeamento, já preenche o que o histórico souber
+   * responder. O que sobrar em branco é o que vale mandar pra IA.
+   */
   useEffect(() => {
-    setCats([]);
+    setCats(
+      parsed.length
+        ? applyLearnedRules(
+            parsed.map((p) => p.description),
+            learned,
+            categories,
+          )
+        : [],
+    );
     setAiError("");
-  }, [parsed]);
+  }, [parsed, learned, categories]);
+
+  const autoFilled = cats.filter(Boolean).length;
 
   async function runAiCategorize() {
     if (aiBusy || !parsed.length) return;
+    // manda pra IA só o que o histórico não resolveu (mais barato e mais rápido)
+    const todo = parsed
+      .map((p, i) => ({ i, description: p.description }))
+      .filter(({ i }) => !cats[i]);
+    if (!todo.length) return;
     setAiBusy(true);
     setAiError("");
     try {
       const result = await categorizeImport(
-        parsed.map((p) => p.description),
+        todo.map((x) => x.description),
         categories.map((c) => ({ id: c.id, name: c.name, kind: c.kind })),
       );
-      setCats(result);
+      setCats((prev) => {
+        const next = parsed.map((_, i) => prev[i] ?? null);
+        todo.forEach((x, k) => {
+          if (result[k]) next[x.i] = result[k];
+        });
+        return next;
+      });
     } catch (e) {
       const code = e instanceof AiError ? e.code : "ai_error";
       setAiError(t(`ai.err.${code}`, { defaultValue: t("ai.err.ai_error") }));
@@ -267,13 +295,25 @@ export function ImportDialog({
                     variant="outline"
                     size="sm"
                     onClick={runAiCategorize}
-                    disabled={aiBusy}
+                    disabled={aiBusy || autoFilled === parsed.length}
                   >
                     <Sparkles size={14} />
-                    {aiBusy ? t("imp.categorizing") : t("imp.categorizeAi")}
+                    {aiBusy
+                      ? t("imp.categorizing")
+                      : autoFilled === parsed.length
+                        ? t("imp.allCategorized")
+                        : t("imp.categorizeRest", {
+                            count: parsed.length - autoFilled,
+                          })}
                   </Button>
                 )}
               </div>
+              {autoFilled > 0 && (
+                <p className="mb-1 flex items-center gap-1.5 text-xs text-muted">
+                  <Wand2 size={13} className="text-primary" />
+                  {t("imp.learned", { count: autoFilled })}
+                </p>
+              )}
               {aiError && <p className="mb-1 text-xs text-expense">{aiError}</p>}
               <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-border p-2">
                 {parsed.slice(0, 30).map((row, i) => (
