@@ -4,3 +4,4 @@ export * from "./budget";
 export * from "./creditcard";
 export * from "./breakdown";
 export * from "./upcoming";
+export * from "./currency";

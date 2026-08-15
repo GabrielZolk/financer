@@ -5,7 +5,8 @@ import { ChevronLeft, ChevronRight, Plus, Trash2, PiggyBank } from "lucide-react
 import { db } from "@/db/schema";
 import { create, update, softDelete } from "@/db/repo";
 import { useCategories, useAllTransactions } from "@/db/hooks";
-import { budgetStatus, resolveBudgets } from "@/lib/calc";
+import { budgetStatus, resolveBudgets, toBaseCurrency } from "@/lib/calc";
+import { useSettings, makeRateFn } from "@/lib/settings";
 import { formatMoney, parseMoney } from "@/lib/money";
 import { monthLong } from "@/lib/format";
 import { currentMonth, confirmDelete } from "@/lib/utils";
@@ -33,7 +34,17 @@ export function BudgetPage() {
   const { t } = useTranslation();
   const [month, setMonth] = useState(currentMonth());
   const categories = useCategories("expense");
-  const transactions = useAllTransactions();
+  const rawTransactions = useAllTransactions();
+  const settings = useSettings();
+  const rate = useMemo(
+    () => makeRateFn(settings.baseCurrency, settings.rates),
+    [settings.baseCurrency, settings.rates],
+  );
+  // o gasto do orçamento é soma: precisa estar todo na moeda base
+  const transactions = useMemo(
+    () => toBaseCurrency(rawTransactions, settings.baseCurrency, rate),
+    [rawTransactions, settings.baseCurrency, rate],
+  );
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Budget | undefined>();
 

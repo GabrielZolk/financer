@@ -6,6 +6,7 @@ import aiHandler from "../api/ai";
 import categorizeHandler from "../api/categorize";
 import insightsHandler from "../api/insights";
 import receiptHandler from "../api/receipt";
+import deleteAccountHandler from "../api/delete-account";
 
 type AnyHandler = (req: never, res: never) => Promise<void>;
 
@@ -127,7 +128,7 @@ describe("toNode — ponte (req,res) do Node ↔ handler Web", () => {
   });
 });
 
-// guarda contra a regressão que quebrou a produção: os 5 endpoints precisam
+// guarda contra a regressão que quebrou a produção: todo endpoint precisa
 // aceitar a assinatura (req,res) do Node sem estourar em req.headers.get
 const ENDPOINTS: [string, unknown][] = [
   ["ai", aiHandler],
@@ -135,6 +136,7 @@ const ENDPOINTS: [string, unknown][] = [
   ["categorize", categorizeHandler],
   ["insights", insightsHandler],
   ["receipt", receiptHandler],
+  ["delete-account", deleteAccountHandler],
 ];
 
 describe.each(ENDPOINTS)("api/%s com a assinatura real do Node", (_name, h) => {

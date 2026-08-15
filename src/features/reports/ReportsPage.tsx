@@ -13,7 +13,9 @@ import {
   cashflow,
   totalsByCategory,
   spendingBreakdown,
+  toBaseCurrency,
 } from "@/lib/calc";
+import { useSettings, makeRateFn } from "@/lib/settings";
 import { formatMoney, fromCents } from "@/lib/money";
 import { monthShort } from "@/lib/format";
 import { currentMonth } from "@/lib/utils";
@@ -106,7 +108,17 @@ function DeltaChip({ delta }: { delta: number | null }) {
 
 export function ReportsPage() {
   const { t } = useTranslation();
-  const transactions = useAllTransactions();
+  const rawTransactions = useAllTransactions();
+  const settings = useSettings();
+  const rate = useMemo(
+    () => makeRateFn(settings.baseCurrency, settings.rates),
+    [settings.baseCurrency, settings.rates],
+  );
+  // tudo aqui é soma: converte pra moeda base antes (no-op se só tem BRL)
+  const transactions = useMemo(
+    () => toBaseCurrency(rawTransactions, settings.baseCurrency, rate),
+    [rawTransactions, settings.baseCurrency, rate],
+  );
   const { mode: privacyMode } = usePrivacy();
   const categories = useCategories("expense");
   const categoryMap = useMemo(

@@ -29,6 +29,7 @@ export const en: Resources = {
     errPinMin: "Use a PIN of at least 4 digits.",
     errPinMismatch: "The PINs don't match.",
     errPinWrong: "Wrong PIN.",
+    error: "Something went wrong. Try again.",
   },
   nav: {
     home: "Home",
@@ -105,7 +106,7 @@ export const en: Resources = {
     aiTitle: "AI features",
     aiDesc: "Write a transaction in plain language and let AI fill it in for you.",
     aiNote:
-      "When used, the text you type plus your account and category names are sent to an AI provider (xAI) to interpret. Nothing is saved without your confirmation. Turn it off anytime.",
+      "When used, what leaves your device is: the text you type, the descriptions in the statement you import, the receipt photo, and a summary of your numbers (balances, monthly and per-category totals, budgets and goals) — never your list of transactions. It goes to xAI (Grok), always through our server. Private transactions are not detailed. Nothing is saved without your confirmation, and the AI can be wrong. Turn it off anytime.",
     categories: "Categories",
     categoriesDesc: "Create and customize with color and icon.",
     tags: "Tags",
@@ -626,7 +627,9 @@ export const en: Resources = {
         "By default, everything stays on your device (browser local storage). If you enable sync, a copy is kept in the cloud (Supabase infrastructure) tied to your account, always sent over a secure connection (HTTPS). Transactions marked private are encrypted with your PIN before leaving the device — without the PIN, no one reads them, not even us. Supabase and Vercel servers are located outside Brazil; when you use sync, your data may be transferred to and stored abroad, always over a secure connection and with appropriate safeguards.",
       shareTitle: "Sharing",
       share:
-        "We do not sell or share your data with third parties for commercial purposes, and we do not use advertising trackers. We only use infrastructure providers, acting as processors: Supabase (database, authentication, and attachment storage), Vercel (app hosting), and Google (only when you choose to sign in with Google).",
+        "We do not sell or share your data with third parties for commercial purposes, and we do not use advertising trackers. We only use infrastructure providers, acting as processors: Supabase (database, authentication, and attachment storage), Vercel (app hosting), Google (only when you choose to sign in with Google), and xAI (only if you turn on the AI features — see the section below).",
+      aiTitle: "AI features (optional, off by default)",
+      ai: "AI features are OFF by default. If you turn them on in Settings → AI features, what leaves your device is: the text you write, the descriptions in the statement you import, the receipt photo you send, and a summary of your numbers (balances, monthly totals, spending by category, budgets and goals) — never your whole database or your list of transactions. That content goes to xAI (Grok models) in the United States, always through our server, which holds the API key and requires you to be signed in. Transactions marked as private are not detailed to the AI: their category and amount are left out (they still count only toward totals, which do not reveal what they were). The AI never saves anything on its own — it returns a suggestion for you to confirm. Turn the feature off at any time to stop sending.",
       rightsTitle: "Your rights",
       rights: [
         "Access and export: in Settings → Backup, you can export everything as .json or .csv at any time.",
@@ -655,6 +658,8 @@ export const en: Resources = {
       whatNotTitle: "What the app is NOT",
       whatNot:
         "The app does not provide financial, accounting, tax or investment advice. The numbers and projections are organizational only. Financial decisions are your responsibility; consult a professional when needed.",
+      aiTitle: "AI features",
+      ai: "AI features are optional and produce automatic suggestions (categories, transactions, summaries and observations). They can be wrong — including amounts, dates and categories — and nothing is saved without your confirmation. No AI answer is financial or investment advice: check it before confirming.",
       accountTitle: "Your account and security",
       account: [
         "You are responsible for keeping your login and PIN secure.",
@@ -779,6 +784,11 @@ export const en: Resources = {
     word: "DELETE",
     confirmBtn: "Erase everything",
     erasing: "Erasing…",
+    alsoAccount: "Also delete my sign-in account",
+    alsoAccountHint:
+      "Removes your e-mail and sync account from the server. To sync again you will have to create a new account.",
+    accountError:
+      "Could not delete the sign-in account right now — so NOTHING was deleted. Try again later, or uncheck the option to erase only the data.",
   },
   fb: {
     title: "Send feedback",

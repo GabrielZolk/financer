@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/primitives";
 import { PageHeader } from "@/components/PageHeader";
 import { formatDate } from "@/lib/format";
 
-const UPDATED_ISO = "2026-07-12";
+const UPDATED_ISO = "2026-08-15";
 const CONTACT = "zolkapp.dev@gmail.com";
 
 function H({ children }: { children: string }) {
@@ -62,6 +62,9 @@ function Privacy() {
       <H>{t("legal.privacy.shareTitle")}</H>
       <P>{t("legal.privacy.share")}</P>
 
+      <H>{t("legal.privacy.aiTitle")}</H>
+      <P>{t("legal.privacy.ai")}</P>
+
       <H>{t("legal.privacy.rightsTitle")}</H>
       <ul className="mt-2 list-disc space-y-1 pl-5">
         {rights.map((item, i) => (
@@ -98,6 +101,9 @@ function Terms() {
 
       <H>{t("legal.terms.whatNotTitle")}</H>
       <P>{t("legal.terms.whatNot")}</P>
+
+      <H>{t("legal.terms.aiTitle")}</H>
+      <P>{t("legal.terms.ai")}</P>
 
       <H>{t("legal.terms.accountTitle")}</H>
       <ul className="mt-2 list-disc space-y-1 pl-5">

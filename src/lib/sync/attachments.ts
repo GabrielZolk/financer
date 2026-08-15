@@ -14,6 +14,13 @@ const BUCKET = "attachments";
 export async function syncAttachments(userId: string): Promise<void> {
   if (!supabase || userId === "local") return;
 
+  /*
+   * Falha de upload não pode passar batido: se o bucket não existir ou o
+   * Storage recusar, o comprovante fica SÓ no aparelho e some junto com ele.
+   * Guardamos o motivo e jogamos no fim, pro sync mostrar o erro.
+   */
+  let uploadError = "";
+
   /* ----------------------------- PUSH local ------------------------------ */
   const all = (await db.attachments.toArray()) as Attachment[];
   for (const att of all.filter((a) => a.dirty === 1)) {
@@ -27,7 +34,10 @@ export async function syncAttachments(userId: string): Promise<void> {
           upsert: true,
           contentType: att.mimeType || "application/octet-stream",
         });
-      if (error) continue; // tenta de novo no próximo sync
+      if (error) {
+        uploadError ||= error.message;
+        continue; // tenta de novo no próximo sync
+      }
     }
     if (att.deleted === 1 && storagePath) {
       await supabase.storage.from(BUCKET).remove([storagePath]);
@@ -61,7 +71,10 @@ export async function syncAttachments(userId: string): Promise<void> {
     .select("*")
     .eq("user_id", userId)
     .eq("table_name", "attachments");
-  if (error || !data) return;
+  if (error || !data) {
+    if (uploadError) throw new Error(`anexo: ${uploadError}`);
+    return;
+  }
 
   for (const row of data) {
     const local = (await db.attachments.get(row.id)) as Attachment | undefined;
@@ -102,4 +115,6 @@ export async function syncAttachments(userId: string): Promise<void> {
       dirty: 0,
     });
   }
+
+  if (uploadError) throw new Error(`anexo: ${uploadError}`);
 }

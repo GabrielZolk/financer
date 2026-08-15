@@ -10,6 +10,7 @@ import {
   spendingBreakdown,
   upcomingDue,
   PRIVATE_BUCKET,
+  toBaseCurrency,
 } from "@/lib/calc";
 import { projectedNet, lastDayOfMonth } from "@/lib/recurrence";
 import { formatMoney } from "@/lib/money";
@@ -89,10 +90,17 @@ export function DashboardPage() {
     );
   }, [accounts, transactions, settings.baseCurrency, rate, thisMonth]);
 
-  const cf = useMemo(
-    () => cashflow(transactions, from, to),
-    [transactions, from, to],
+  /*
+   * Somas de entradas/saídas e gasto por categoria precisam da moeda base:
+   * netWorth já converte por conta, mas cashflow/breakdown somavam centavos
+   * de moedas diferentes. (Sem conta em outra moeda, devolve a mesma lista.)
+   */
+  const txBase = useMemo(
+    () => toBaseCurrency(transactions, settings.baseCurrency, rate),
+    [transactions, settings.baseCurrency, rate],
   );
+
+  const cf = useMemo(() => cashflow(txBase, from, to), [txBase, from, to]);
 
   // recorrências (pra lembretes + saldo previsto)
   const recurrences = useLiveQuery(
@@ -119,7 +127,7 @@ export function DashboardPage() {
   );
 
   const spending = useMemo(() => {
-    const bd = spendingBreakdown(transactions, from, to, privacyMode);
+    const bd = spendingBreakdown(txBase, from, to, privacyMode);
     const entries = bd.items.map((i) => ({ ...i, isPrivate: false }));
     if (bd.privateTotal > 0)
       entries.push({
@@ -132,7 +140,7 @@ export function DashboardPage() {
     const top = entries.slice(0, TOPN);
     const restTotal = entries.slice(TOPN).reduce((s, t) => s + t.total, 0);
     return { total: bd.total, top, restTotal };
-  }, [transactions, from, to, privacyMode]);
+  }, [txBase, from, to, privacyMode]);
 
   const recent = useMemo(
     () =>

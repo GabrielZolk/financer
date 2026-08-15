@@ -1,4 +1,4 @@
-import { createHashRouter, RouterProvider } from "react-router-dom";
+import { createHashRouter, RouterProvider, Navigate } from "react-router-dom";
 import { AppLockGate } from "@/features/applock/AppLockGate";
 import { WelcomeGate } from "@/features/welcome/WelcomeGate";
 import { AppShell } from "@/components/AppShell";
@@ -35,6 +35,8 @@ const router = createHashRouter([
       { path: "privacidade", element: <LegalPage doc="privacy" /> },
       { path: "termos", element: <LegalPage doc="terms" /> },
       { path: "settings", element: <SettingsPage /> },
+      // link velho/torto cai no início em vez da tela de erro do router
+      { path: "*", element: <Navigate to="/" replace /> },
     ],
   },
 ]);

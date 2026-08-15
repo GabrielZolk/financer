@@ -20,6 +20,11 @@ export interface FinancialSnapshot {
   gastoPorCategoriaMes: { categoria: string; total: number }[];
   metas: { nome: string; alvo: number; guardado: number; pct: number }[];
   orcamentosMes: { categoria: string; limite: number; gasto: number }[];
+  /**
+   * Quantos lançamentos privados ficaram DE FORA do detalhamento por categoria
+   * (eles continuam nos saldos e nos totais do mês, que não revelam o quê).
+   */
+  privadosOmitidos: number;
 }
 
 const r = (cents: number) => Math.round(cents) / 100;
@@ -51,6 +56,14 @@ export function buildSnapshot(
   const live = transactions.filter(
     (t) => t.deleted === 0 && t.status !== "pending",
   );
+  /**
+   * O que vai pra IA nunca detalha lançamento privado: o par
+   * "categoria + valor" é justamente o que o usuário escondeu. Saldos e
+   * totais do mês continuam completos — são agregados que não dizem O QUÊ,
+   * e mantê-los evita a IA falar um saldo diferente do que está na tela.
+   */
+  const publicos = live.filter((t) => t.private !== 1);
+  const privadosOmitidos = live.length - publicos.length;
   const catName = new Map(categories.map((c) => [c.id, c.name]));
   const balances = balancesByAccount(accounts, transactions);
 
@@ -91,7 +104,7 @@ export function buildSnapshot(
   const month = today.slice(0, 7);
   const catAno = new Map<string, number>();
   const catMes = new Map<string, number>();
-  for (const t of live) {
+  for (const t of publicos) {
     if (t.kind !== "expense") continue;
     const name = t.categoryId
       ? (catName.get(t.categoryId) ?? "Sem categoria")
@@ -121,7 +134,7 @@ export function buildSnapshot(
 
   // orçamentos do mês atual: gasto real por categoria no mês
   const spentByCat = new Map<string, number>();
-  for (const t of live) {
+  for (const t of publicos) {
     if (t.kind !== "expense" || t.date.slice(0, 7) !== month) continue;
     if (t.categoryId)
       spentByCat.set(
@@ -150,5 +163,6 @@ export function buildSnapshot(
     gastoPorCategoriaMes: topCat(catMes, 12),
     metas,
     orcamentosMes,
+    privadosOmitidos,
   };
 }

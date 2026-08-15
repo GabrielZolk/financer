@@ -184,9 +184,18 @@ export async function fullSync(userId: string): Promise<void> {
     await pull(userId);
     await push(userId);
     await syncPrivacyMeta(userId).catch(() => {});
-    await syncAttachments(userId).catch(() => {});
+    // anexo que não sobe fica só no aparelho — falha visível, mas sem
+    // derrubar o sync do resto (que já deu certo acima)
+    let attachError: string | null = null;
+    await syncAttachments(userId).catch((e: unknown) => {
+      attachError = e instanceof Error ? e.message : "anexo";
+    });
     await refreshPending();
-    setSyncState({ status: "idle", lastSyncAt: nowIso(), error: null });
+    setSyncState({
+      status: attachError ? "error" : "idle",
+      lastSyncAt: nowIso(),
+      error: attachError,
+    });
   } catch (err) {
     setSyncState({ status: "error", error: (err as Error).message });
     throw err;

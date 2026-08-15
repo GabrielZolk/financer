@@ -27,6 +27,7 @@ export const pt = {
     errPinMin: "Use um PIN de pelo menos 4 dígitos.",
     errPinMismatch: "Os PINs não conferem.",
     errPinWrong: "PIN incorreto.",
+    error: "Algo deu errado. Tente de novo.",
   },
   nav: {
     home: "Início",
@@ -103,7 +104,7 @@ export const pt = {
     aiTitle: "Recursos de IA",
     aiDesc: "Escreva o lançamento em linguagem natural e a IA preenche pra você.",
     aiNote:
-      "Ao usar, o texto que você escrever + os nomes das suas contas e categorias são enviados a um provedor de IA (xAI) pra interpretar. Nenhum lançamento é salvo sem você confirmar. Desligue quando quiser.",
+      "Ao usar, saem do aparelho: o texto que você escrever, as descrições do extrato que importar, a foto do cupom e um resumo dos seus números (saldos, totais por mês e por categoria, orçamentos e metas) — nunca a lista de lançamentos. Vai para a xAI (Grok), sempre pelo nosso servidor. Lançamentos privados não são detalhados. Nada é salvo sem você confirmar, e a IA pode errar. Desligue quando quiser.",
     categories: "Categorias",
     categoriesDesc: "Crie e personalize com cor e ícone.",
     tags: "Marcadores",
@@ -630,7 +631,9 @@ export const pt = {
         "Por padrão, tudo fica no seu aparelho (armazenamento local do navegador). Se você ativar a sincronização, uma cópia é guardada na nuvem (infraestrutura Supabase) ligada à sua conta, transmitida sempre por conexão segura (HTTPS). Lançamentos marcados como privados são criptografados com o seu PIN antes de sair do aparelho — sem o PIN, ninguém os lê, nem nós. Os servidores do Supabase e da Vercel ficam fora do Brasil; ao usar a sincronização, seus dados podem ser transferidos e armazenados no exterior, sempre sob conexão segura e com salvaguardas adequadas.",
       shareTitle: "Compartilhamento",
       share:
-        "Não vendemos nem compartilhamos seus dados com terceiros para fins comerciais e não usamos rastreadores de publicidade. Utilizamos apenas prestadores de infraestrutura, na função de operadores: Supabase (banco de dados, autenticação e armazenamento de anexos), Vercel (hospedagem do aplicativo) e Google (apenas quando você escolhe entrar com o Google).",
+        "Não vendemos nem compartilhamos seus dados com terceiros para fins comerciais e não usamos rastreadores de publicidade. Utilizamos apenas prestadores de infraestrutura, na função de operadores: Supabase (banco de dados, autenticação e armazenamento de anexos), Vercel (hospedagem do aplicativo), Google (apenas quando você escolhe entrar com o Google) e xAI (apenas se você ativar os recursos de IA — veja a seção abaixo).",
+      aiTitle: "Recursos de IA (opcional, desligados por padrão)",
+      ai: "Os recursos de inteligência artificial vêm DESLIGADOS. Se você ativar em Ajustes → Recursos de IA, o que sai do aparelho é: o texto que você escrever, as descrições do extrato que você importar, a foto do cupom que você enviar e um resumo dos seus números (saldos, totais por mês, gasto por categoria, orçamentos e metas) — nunca o seu banco de dados inteiro nem a lista de lançamentos. Esse conteúdo vai para a xAI (modelos Grok), nos Estados Unidos, sempre através do nosso servidor, que guarda a chave de acesso e exige que você esteja logado. Lançamentos marcados como privados não são detalhados para a IA: a categoria e o valor deles ficam de fora (eles seguem contando apenas nos totais, que não revelam o quê). A IA nunca salva nada sozinha — ela devolve uma sugestão que você confirma. Desligue o recurso a qualquer momento para parar de enviar.",
       rightsTitle: "Seus direitos (LGPD)",
       rights: [
         "Acessar e exportar: em Ajustes → Backup, você exporta tudo em .json ou .csv a qualquer momento.",
@@ -659,6 +662,8 @@ export const pt = {
       whatNotTitle: "O que o app NÃO é",
       whatNot:
         "O app não presta aconselhamento financeiro, contábil, tributário ou de investimentos. Os números e projeções são apenas organizacionais. Decisões financeiras são de sua responsabilidade; consulte um profissional quando necessário.",
+      aiTitle: "Recursos de IA",
+      ai: "Os recursos de IA são opcionais e produzem sugestões automáticas (categorias, lançamentos, resumos e observações). Eles podem errar — inclusive em valores, datas e categorias — e nada é salvo sem a sua confirmação. Nenhuma resposta da IA é aconselhamento financeiro ou de investimentos: confira antes de confirmar.",
       accountTitle: "Sua conta e segurança",
       account: [
         "Você é responsável por manter seu login e seu PIN em segurança.",
@@ -783,6 +788,11 @@ export const pt = {
     word: "APAGAR",
     confirmBtn: "Apagar tudo",
     erasing: "Apagando…",
+    alsoAccount: "Apagar também minha conta de login",
+    alsoAccountHint:
+      "Remove seu e-mail e a conta de sincronização do servidor. Pra sincronizar de novo você terá que criar outra conta.",
+    accountError:
+      "Não consegui apagar a conta de login agora — e por isso NADA foi apagado. Tente de novo mais tarde, ou desmarque a opção pra apagar só os dados.",
   },
   fb: {
     title: "Enviar feedback",

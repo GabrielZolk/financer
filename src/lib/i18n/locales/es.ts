@@ -29,6 +29,7 @@ export const es: Resources = {
     errPinMin: "Usa un PIN de al menos 4 dígitos.",
     errPinMismatch: "Los PIN no coinciden.",
     errPinWrong: "PIN incorrecto.",
+    error: "Algo salió mal. Inténtalo de nuevo.",
   },
   nav: {
     home: "Inicio",
@@ -106,7 +107,7 @@ export const es: Resources = {
     aiTitle: "Funciones de IA",
     aiDesc: "Escribe el movimiento en lenguaje natural y la IA lo completa por ti.",
     aiNote:
-      "Al usarla, el texto que escribas más los nombres de tus cuentas y categorías se envían a un proveedor de IA (xAI) para interpretarlos. Nada se guarda sin tu confirmación. Desactívala cuando quieras.",
+      "Al usarla, salen del dispositivo: el texto que escribas, las descripciones del extracto que importes, la foto del ticket y un resumen de tus números (saldos, totales por mes y por categoría, presupuestos y metas) — nunca tu lista de movimientos. Va a xAI (Grok), siempre a través de nuestro servidor. Los movimientos privados no se detallan. Nada se guarda sin tu confirmación, y la IA puede equivocarse. Desactívala cuando quieras.",
     categories: "Categorías",
     categoriesDesc: "Crea y personaliza con color e icono.",
     tags: "Etiquetas",
@@ -629,7 +630,9 @@ export const es: Resources = {
         "Por defecto, todo queda en tu dispositivo (almacenamiento local del navegador). Si activas la sincronización, se guarda una copia en la nube (infraestructura Supabase) vinculada a tu cuenta, siempre por conexión segura (HTTPS). Los movimientos marcados como privados se cifran con tu PIN antes de salir del dispositivo — sin el PIN, nadie los lee, ni nosotros. Los servidores de Supabase y Vercel están fuera de Brasil; al usar la sincronización, tus datos pueden transferirse y almacenarse en el extranjero, siempre mediante conexión segura y con salvaguardas adecuadas.",
       shareTitle: "Compartir",
       share:
-        "No vendemos ni compartimos tus datos con terceros con fines comerciales, ni usamos rastreadores publicitarios. Solo utilizamos proveedores de infraestructura, como encargados del tratamiento: Supabase (base de datos, autenticación y almacenamiento de adjuntos), Vercel (alojamiento de la app) y Google (solo cuando eliges iniciar sesión con Google).",
+        "No vendemos ni compartimos tus datos con terceros con fines comerciales, ni usamos rastreadores publicitarios. Solo utilizamos proveedores de infraestructura, como encargados del tratamiento: Supabase (base de datos, autenticación y almacenamiento de adjuntos), Vercel (alojamiento de la app), Google (solo cuando eliges iniciar sesión con Google) y xAI (solo si activas las funciones de IA — mira la sección de abajo).",
+      aiTitle: "Funciones de IA (opcionales, desactivadas por defecto)",
+      ai: "Las funciones de inteligencia artificial vienen DESACTIVADAS. Si las activas en Ajustes → Funciones de IA, lo que sale del dispositivo es: el texto que escribas, las descripciones del extracto que importes, la foto del ticket que envíes y un resumen de tus números (saldos, totales por mes, gasto por categoría, presupuestos y metas) — nunca toda tu base de datos ni tu lista de movimientos. Ese contenido va a xAI (modelos Grok), en Estados Unidos, siempre a través de nuestro servidor, que guarda la clave de acceso y exige que hayas iniciado sesión. Los movimientos marcados como privados no se detallan a la IA: su categoría y su importe quedan fuera (solo siguen contando en los totales, que no revelan qué son). La IA nunca guarda nada por su cuenta — devuelve una sugerencia que tú confirmas. Desactiva la función cuando quieras para dejar de enviar.",
       rightsTitle: "Tus derechos",
       rights: [
         "Acceder y exportar: en Ajustes → Copia de seguridad, exportas todo en .json o .csv cuando quieras.",
@@ -658,6 +661,8 @@ export const es: Resources = {
       whatNotTitle: "Qué NO es la app",
       whatNot:
         "La app no presta asesoramiento financiero, contable, fiscal ni de inversiones. Los números y proyecciones son solo organizativos. Las decisiones financieras son tu responsabilidad; consulta a un profesional cuando sea necesario.",
+      aiTitle: "Funciones de IA",
+      ai: "Las funciones de IA son opcionales y generan sugerencias automáticas (categorías, movimientos, resúmenes y observaciones). Pueden equivocarse — incluso en importes, fechas y categorías — y nada se guarda sin tu confirmación. Ninguna respuesta de la IA es asesoramiento financiero o de inversión: revísala antes de confirmar.",
       accountTitle: "Tu cuenta y seguridad",
       account: [
         "Eres responsable de mantener seguros tu inicio de sesión y tu PIN.",
@@ -782,6 +787,11 @@ export const es: Resources = {
     word: "BORRAR",
     confirmBtn: "Borrar todo",
     erasing: "Borrando…",
+    alsoAccount: "Borrar también mi cuenta de acceso",
+    alsoAccountHint:
+      "Elimina tu e-mail y la cuenta de sincronización del servidor. Para sincronizar de nuevo tendrás que crear otra cuenta.",
+    accountError:
+      "No pude borrar la cuenta de acceso ahora — por eso NO se borró nada. Inténtalo más tarde o desmarca la opción para borrar solo los datos.",
   },
   fb: {
     title: "Enviar comentarios",
