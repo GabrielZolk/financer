@@ -622,6 +622,11 @@ export const es: Resources = {
     aiPreviewTitle: "Ver lo que va a la IA ({{count}} línea(s))",
     aiPreviewNote:
       "El archivo no se envía — solo estas descripciones. Documento, cuenta, tarjeta y e-mail ya salen enmascarados.",
+    edited: "editado",
+    undo: "deshacer",
+    removeRow: "Quitar línea",
+    rowDone: "Listo",
+    editHint: "Toca una línea para corregirla o quitarla antes de importar.",
   },
   legal: {
     privacyTitle: "Política de Privacidad",

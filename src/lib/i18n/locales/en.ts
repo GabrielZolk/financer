@@ -619,6 +619,11 @@ export const en: Resources = {
     aiPreviewTitle: "See what goes to the AI ({{count}} line(s))",
     aiPreviewNote:
       "The file is never uploaded — only these descriptions. Tax ids, account and card numbers and e-mails are already masked out.",
+    edited: "edited",
+    undo: "undo",
+    removeRow: "Remove row",
+    rowDone: "Done",
+    editHint: "Tap a row to fix or remove it before importing.",
   },
   legal: {
     privacyTitle: "Privacy Policy",

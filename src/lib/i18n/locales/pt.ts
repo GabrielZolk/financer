@@ -623,6 +623,11 @@ export const pt = {
     aiPreviewTitle: "Ver o que vai pra IA ({{count}} linha(s))",
     aiPreviewNote:
       "O arquivo não é enviado — só estas descrições. CPF, conta, cartão e e-mail já saem mascarados.",
+    edited: "editado",
+    undo: "desfazer",
+    removeRow: "Remover linha",
+    rowDone: "Pronto",
+    editHint: "Toque numa linha pra corrigir ou remover antes de importar.",
   },
   legal: {
     privacyTitle: "Política de Privacidade",

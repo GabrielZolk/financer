@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Upload, FileText, Sparkles, Wand2, ShieldCheck } from "lucide-react";
+import {
+  Upload,
+  FileText,
+  Sparkles,
+  Wand2,
+  ShieldCheck,
+  ChevronDown,
+  Trash2,
+} from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button, Input, Label, Select } from "@/components/ui/primitives";
 import { bulkCreate } from "@/db/repo";
@@ -11,12 +19,14 @@ import { categorizeImport } from "@/lib/aiCategorize";
 import { learnRules, applyLearnedRules } from "@/lib/autoCategory";
 import { AiError } from "@/lib/ai";
 import { formatMoney } from "@/lib/money";
+import { cn } from "@/lib/utils";
 import {
   parseOfx,
   parseCsvRows,
   guessCsvColumns,
   csvToTransactions,
   parseStatementText,
+  parseAmountSigned,
   type ParsedTx,
   type CsvColumnGuess,
 } from "@/lib/import";
@@ -153,6 +163,32 @@ export function ImportDialog({
     return [];
   }, [mode, csvRows, cols, ofxTxs]);
 
+  /**
+   * Correções feitas na revisão, por índice da linha. Ficam separadas do que
+   * foi lido do arquivo: trocar o mapeamento de colunas do CSV recalcula
+   * `parsed` e as correções antigas deixam de fazer sentido — por isso o
+   * efeito abaixo zera tudo junto com as categorias.
+   */
+  const [edits, setEdits] = useState<Record<number, Partial<ParsedTx>>>({});
+  const [removed, setRemoved] = useState<Set<number>>(new Set());
+  const [openRow, setOpenRow] = useState<number | null>(null);
+  const [draft, setDraft] = useState<{
+    date: string;
+    description: string;
+    amountText: string;
+    categoryId: string;
+  } | null>(null);
+
+  /** as linhas como estão AGORA (arquivo + suas correções) */
+  const rows: ParsedTx[] = useMemo(
+    () => parsed.map((p, i) => ({ ...p, ...edits[i] })),
+    [parsed, edits],
+  );
+  const keptIndexes = useMemo(
+    () => rows.map((_, i) => i).filter((i) => !removed.has(i)),
+    [rows, removed],
+  );
+
   const colOptions = csvRows[0]?.map((_, i) => i) ?? [];
   // 1ª linha de dados, pra mostrar um exemplo do conteúdo de cada coluna
   const sampleRow = csvRows[cols.headerRow >= 0 ? cols.headerRow + 1 : 0] ?? [];
@@ -179,24 +215,85 @@ export function ImportDialog({
         : [],
     );
     setAiError("");
+    setEdits({});
+    setRemoved(new Set());
+    setOpenRow(null);
+    setDraft(null);
   }, [parsed, learned, categories]);
 
-  const autoFilled = cats.filter(Boolean).length;
+  const autoFilled = keptIndexes.filter((i) => cats[i]).length;
 
   /** exatamente o texto que iria pra IA — já mascarado — pra você conferir antes */
   const pendingForAi = useMemo(
     () =>
-      redactAll(parsed.filter((_, i) => !cats[i]).map((p) => p.description))
-        .redacted,
-    [parsed, cats],
+      redactAll(
+        keptIndexes.filter((i) => !cats[i]).map((i) => rows[i].description),
+      ).redacted,
+    [keptIndexes, rows, cats],
   );
 
+  /* ------------------------ edição de linha (revisão) ----------------------- */
+
+  const centsToText = (cents: number) =>
+    (cents / 100).toFixed(2).replace(".", ",");
+
+  function toggleRow(i: number) {
+    if (openRow === i) {
+      setOpenRow(null);
+      setDraft(null);
+      return;
+    }
+    setOpenRow(i);
+    setDraft({
+      date: rows[i].date,
+      description: rows[i].description,
+      amountText: centsToText(rows[i].amountCents),
+      categoryId: cats[i] ?? "",
+    });
+  }
+
+  /** Fecha a linha aberta guardando o que foi digitado. */
+  function commitDraft() {
+    if (openRow === null || !draft) return;
+    const i = openRow;
+    const amount = parseAmountSigned(draft.amountText);
+    setEdits((prev) => ({
+      ...prev,
+      [i]: {
+        date: draft.date || rows[i].date,
+        description: draft.description.trim() || rows[i].description,
+        // valor inválido não apaga o que veio do arquivo
+        amountCents: amount === null || amount === 0 ? rows[i].amountCents : amount,
+      },
+    }));
+    setCats((prev) => {
+      const next = [...prev];
+      next[i] = draft.categoryId || null;
+      return next;
+    });
+    setOpenRow(null);
+    setDraft(null);
+  }
+
+  function toggleRemoved(i: number) {
+    setRemoved((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+    if (openRow === i) {
+      setOpenRow(null);
+      setDraft(null);
+    }
+  }
+
   async function runAiCategorize() {
-    if (aiBusy || !parsed.length) return;
-    // manda pra IA só o que o histórico não resolveu (mais barato e mais rápido)
-    const todo = parsed
-      .map((p, i) => ({ i, description: p.description }))
-      .filter(({ i }) => !cats[i]);
+    if (aiBusy || !keptIndexes.length) return;
+    // manda pra IA só o que o histórico não resolveu, e nunca linha removida
+    const todo = keptIndexes
+      .filter((i) => !cats[i])
+      .map((i) => ({ i, description: rows[i].description }));
     if (!todo.length) return;
     setAiBusy(true);
     setAiError("");
@@ -208,7 +305,7 @@ export function ImportDialog({
         categories.map((c) => ({ id: c.id, name: c.name, kind: c.kind })),
       );
       setCats((prev) => {
-        const next = parsed.map((_, i) => prev[i] ?? null);
+        const next = rows.map((_, i) => prev[i] ?? null);
         todo.forEach((x, k) => {
           if (result[k]) next[x.i] = result[k];
         });
@@ -227,9 +324,27 @@ export function ImportDialog({
       setError(t("imp.errDest"));
       return;
     }
-    if (!parsed.length) {
+    if (!keptIndexes.length) {
       setError(t("imp.errNone"));
       return;
+    }
+
+    /*
+     * A linha que ficou ABERTA também vale: o usuário pode digitar e clicar
+     * direto em "Importar". Aplicamos o rascunho aqui num array local — não dá
+     * pra confiar no setState do commitDraft, que só chega no próximo render.
+     */
+    const finalRows = [...rows];
+    const finalCats = [...cats];
+    if (openRow !== null && draft) {
+      const amount = parseAmountSigned(draft.amountText);
+      finalRows[openRow] = {
+        date: draft.date || rows[openRow].date,
+        description: draft.description.trim() || rows[openRow].description,
+        amountCents:
+          amount === null || amount === 0 ? rows[openRow].amountCents : amount,
+      };
+      finalCats[openRow] = draft.categoryId || null;
     }
     const account = accounts.find((a) => a.id === accountId);
     // dedup: não recria lançamentos que já existem nessa conta (mesma data,
@@ -241,8 +356,8 @@ export function ImportDialog({
         .filter((x) => x.accountId === accountId && x.deleted === 0)
         .map((x) => key(x.date, x.amountCents, x.kind)),
     );
-    const fresh = parsed
-      .map((p, i) => ({ p, cat: cats[i] ?? null }))
+    const fresh = keptIndexes
+      .map((i) => ({ p: finalRows[i], cat: finalCats[i] ?? null }))
       .filter(({ p }) => {
         const kind = p.amountCents < 0 ? "expense" : "income";
         return !seen.has(key(p.date, Math.abs(p.amountCents), kind));
@@ -263,7 +378,7 @@ export function ImportDialog({
       })),
     );
     setImportedCount(fresh.length);
-    setSkippedCount(parsed.length - fresh.length);
+    setSkippedCount(keptIndexes.length - fresh.length);
     setMode("done");
   }
 
@@ -382,22 +497,22 @@ export function ImportDialog({
             <div>
               <div className="mb-1 flex items-center justify-between gap-2">
                 <p className="text-sm font-medium">
-                  {t("imp.recognized", { count: parsed.length })}
+                  {t("imp.recognized", { count: keptIndexes.length })}
                 </p>
-                {aiAvailable && parsed.length > 0 && (
+                {aiAvailable && keptIndexes.length > 0 && (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={runAiCategorize}
-                    disabled={aiBusy || autoFilled === parsed.length}
+                    disabled={aiBusy || autoFilled === keptIndexes.length}
                   >
                     <Sparkles size={14} />
                     {aiBusy
                       ? t("imp.categorizing")
-                      : autoFilled === parsed.length
+                      : autoFilled === keptIndexes.length
                         ? t("imp.allCategorized")
                         : t("imp.categorizeRest", {
-                            count: parsed.length - autoFilled,
+                            count: keptIndexes.length - autoFilled,
                           })}
                   </Button>
                 )}
@@ -406,6 +521,11 @@ export function ImportDialog({
                 <p className="mb-1 flex items-center gap-1.5 text-xs text-muted">
                   <Wand2 size={13} className="text-primary" />
                   {t("imp.learned", { count: autoFilled })}
+                </p>
+              )}
+              {rows.length > 0 && (
+                <p className="mb-1 text-[11px] text-muted">
+                  {t("imp.editHint")}
                 </p>
               )}
               {aiAvailable && pendingForAi.length > 0 && (
@@ -427,34 +547,167 @@ export function ImportDialog({
                 </details>
               )}
               {aiError && <p className="mb-1 text-xs text-expense">{aiError}</p>}
-              <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-border p-2">
-                {parsed.slice(0, 30).map((row, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between gap-2 text-xs"
-                  >
-                    <span className="min-w-0 truncate text-muted">
-                      {row.date} · {row.description}
-                      {cats[i] && (
-                        <span className="ml-1 text-primary">
-                          · {categoryMap.get(cats[i]!) ?? ""}
+              <div className="max-h-64 space-y-0.5 overflow-y-auto rounded-xl border border-border p-2">
+                {rows.map((row, i) => {
+                  const isRemoved = removed.has(i);
+                  const isOpen = openRow === i;
+                  const wasEdited = !!edits[i];
+                  return (
+                    <div key={i}>
+                      <div
+                        role="button"
+                        tabIndex={isRemoved ? -1 : 0}
+                        onClick={() => !isRemoved && toggleRow(i)}
+                        onKeyDown={(e) => {
+                          if (isRemoved) return;
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            toggleRow(i);
+                          }
+                        }}
+                        className={cn(
+                          "flex items-center justify-between gap-2 rounded-lg px-1.5 py-1 text-xs",
+                          isRemoved
+                            ? "opacity-50"
+                            : "cursor-pointer hover:bg-surface-2",
+                          isOpen && "bg-surface-2",
+                        )}
+                      >
+                        <span className="min-w-0 truncate text-muted">
+                          <span className={isRemoved ? "line-through" : ""}>
+                            {row.date} · {row.description}
+                          </span>
+                          {!isRemoved && cats[i] && (
+                            <span className="ml-1 text-primary">
+                              · {categoryMap.get(cats[i]!) ?? ""}
+                            </span>
+                          )}
+                          {wasEdited && !isRemoved && (
+                            <span className="ml-1.5 rounded border border-border px-1 py-px text-[9px] text-muted">
+                              {t("imp.edited")}
+                            </span>
+                          )}
                         </span>
+                        <span className="flex shrink-0 items-center gap-1.5">
+                          {isRemoved && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleRemoved(i);
+                              }}
+                              className="text-[11px] text-primary hover:underline"
+                            >
+                              {t("imp.undo")}
+                            </button>
+                          )}
+                          <span
+                            className="tabular"
+                            style={{
+                              color:
+                                row.amountCents < 0
+                                  ? "var(--expense)"
+                                  : "var(--income)",
+                            }}
+                          >
+                            {formatMoney(row.amountCents)}
+                          </span>
+                          {!isRemoved && (
+                            <ChevronDown
+                              size={12}
+                              className={cn(
+                                "text-muted transition-transform",
+                                isOpen && "rotate-180",
+                              )}
+                            />
+                          )}
+                        </span>
+                      </div>
+
+                      {isOpen && draft && (
+                        <div className="my-1 rounded-xl border border-primary bg-surface p-2.5">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-[10px]">
+                                {t("imp.colDate")}
+                              </Label>
+                              <Input
+                                type="date"
+                                value={draft.date}
+                                onChange={(e) =>
+                                  setDraft({ ...draft, date: e.target.value })
+                                }
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-[10px]">
+                                {t("imp.colAmount")}
+                              </Label>
+                              <Input
+                                inputMode="decimal"
+                                value={draft.amountText}
+                                onChange={(e) =>
+                                  setDraft({
+                                    ...draft,
+                                    amountText: e.target.value,
+                                  })
+                                }
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <Label className="text-[10px]">
+                                {t("imp.colDescription")}
+                              </Label>
+                              <Input
+                                value={draft.description}
+                                onChange={(e) =>
+                                  setDraft({
+                                    ...draft,
+                                    description: e.target.value,
+                                  })
+                                }
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <Label className="text-[10px]">
+                                {t("tx.category")}
+                              </Label>
+                              <Select
+                                value={draft.categoryId}
+                                onChange={(e) =>
+                                  setDraft({
+                                    ...draft,
+                                    categoryId: e.target.value,
+                                  })
+                                }
+                              >
+                                <option value="">{t("tx.noCategory")}</option>
+                                {categories.map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.name}
+                                  </option>
+                                ))}
+                              </Select>
+                            </div>
+                          </div>
+                          <div className="mt-2.5 flex items-center justify-between">
+                            <button
+                              type="button"
+                              onClick={() => toggleRemoved(i)}
+                              className="flex items-center gap-1 text-[11px] text-muted hover:text-expense"
+                            >
+                              <Trash2 size={12} /> {t("imp.removeRow")}
+                            </button>
+                            <Button size="sm" onClick={commitDraft}>
+                              {t("imp.rowDone")}
+                            </Button>
+                          </div>
+                        </div>
                       )}
-                    </span>
-                    <span
-                      className="tabular"
-                      style={{
-                        color:
-                          row.amountCents < 0
-                            ? "var(--expense)"
-                            : "var(--income)",
-                      }}
-                    >
-                      {formatMoney(row.amountCents)}
-                    </span>
-                  </div>
-                ))}
-                {parsed.length === 0 && (
+                    </div>
+                  );
+                })}
+                {rows.length === 0 && (
                   <p className="text-xs text-muted">
                     {t("imp.nothingRecognized")}
                   </p>
@@ -468,8 +721,8 @@ export function ImportDialog({
               <Button variant="outline" onClick={reset}>
                 {t("imp.changeFile")}
               </Button>
-              <Button onClick={confirmImport} disabled={!parsed.length}>
-                {t("imp.importN", { count: parsed.length })}
+              <Button onClick={confirmImport} disabled={!keptIndexes.length}>
+                {t("imp.importN", { count: keptIndexes.length })}
               </Button>
             </div>
           </div>
