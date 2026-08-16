@@ -102,7 +102,7 @@ export const en: Resources = {
     language: "Language",
     languageHint: "Changes the language and date/number formats.",
     importStatement: "Import statement",
-    importStatementDesc: "Bring in transactions from a bank CSV or OFX file.",
+    importStatementDesc: "Bring in transactions from a bank OFX, CSV or PDF file.",
     aiTitle: "AI features",
     aiDesc: "Write a transaction in plain language and let AI fill it in for you.",
     aiNote:
@@ -586,10 +586,10 @@ export const en: Resources = {
     cta: "Import",
     exportXlsx: "Export Excel",
     dropTitle: "Drop the statement here",
-    dropHint: "CSV or OFX · you review before saving",
+    dropHint: "OFX, CSV or PDF · you review before saving",
     title: "Import statement",
     intro:
-      "Import a CSV or OFX statement from your bank. Negative amounts become expenses; positive, income.",
+      "Import a bank statement in OFX, CSV or PDF. Negative amounts become expenses; positive, income.",
     chooseFile: "Choose file",
     destAccount: "Destination account",
     colDate: "Date",
@@ -607,6 +607,18 @@ export const en: Resources = {
     doneMsg: "{{count}} transactions imported! ✅",
     skipped: "{{count}} already existed and were skipped.",
     finish: "Done",
+    pdfPassword: "This PDF is protected. Enter the file password to open it.",
+    pdfPasswordWrong: "Wrong password. Try again.",
+    pdfPasswordHint:
+      "It is the password your bank asks for to open the statement (often your tax id, date of birth or account digits). It stays on this device only.",
+    pdfNoRows:
+      "I could not find transactions in this PDF. If your bank offers OFX or CSV, those formats are far more reliable.",
+    pdfFailed: "I could not read this PDF. Try exporting as OFX or CSV.",
+    readingPdf: "Reading the PDF…",
+    pdfLocal: "The PDF is read here on your device — the file is never uploaded.",
+    aiPreviewTitle: "See what goes to the AI ({{count}} line(s))",
+    aiPreviewNote:
+      "The file is never uploaded — only these descriptions. Tax ids, account and card numbers and e-mails are already masked out.",
   },
   legal: {
     privacyTitle: "Privacy Policy",

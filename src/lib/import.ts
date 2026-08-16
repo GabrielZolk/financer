@@ -1,6 +1,8 @@
 /**
- * Importação de extratos bancários (CSV e OFX).
+ * Importação de extratos bancários (CSV, OFX e PDF).
  * Tudo aqui é puro/testável; a UI (features/import) faz o mapeamento e a criação.
+ * O texto do PDF é extraído no aparelho (lib/pdfText.ts) e cai em
+ * `parseStatementText` — o arquivo nunca sai do dispositivo.
  */
 
 export interface ParsedTx {
@@ -212,5 +214,112 @@ export function parseOfx(text: string): ParsedTx[] {
     if (!date || amount === null || amount === 0) continue;
     out.push({ date, description: memo ?? "Importado", amountCents: amount });
   }
+  return out;
+}
+
+/* ---------------------------------- PDF ----------------------------------- */
+
+/** Valor monetário no meio de uma linha de extrato: 1.234,56 / -18,90 / 18,90 D */
+const MONEY_IN_LINE =
+  /(-)?\s*R?\$?\s*(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})\s*([DC])?(?![\d,])/g;
+
+/** Linhas que são resumo, não lançamento. */
+const NOT_A_TRANSACTION =
+  /^(saldo|total|s\s*a\s*l\s*d\s*o|saldo\s+anterior|saldo\s+do\s+dia|saldo\s+final|limite)/i;
+
+/**
+ * Extrai lançamentos do TEXTO de um extrato em PDF.
+ *
+ * Formato alvo (o que os bancos brasileiros imprimem): data no começo da
+ * linha, descrição no meio, valor no fim — às vezes seguido do saldo
+ * acumulado. Quando a linha tem 2+ valores, o PRIMEIRO é o lançamento e o
+ * resto é saldo corrente.
+ *
+ * Sinal, em ordem de confiança:
+ *  1. `-` na frente ou `D`/`C` depois (Itaú usa os dois estilos);
+ *  2. a **variação do saldo acumulado** — se a linha traz o saldo e a anterior
+ *     também, a diferença diz se entrou ou saiu (é assim que "SALARIO 3.200,00"
+ *     sem sinal é reconhecido como entrada);
+ *  3. sem nada disso, assume saída (a maioria das linhas é) — e o usuário
+ *     revisa tudo antes de importar.
+ *
+ * Ano: muitos PDFs imprimem só dd/mm. Usamos o ano que aparecer no cabeçalho
+ * do documento; se não houver, o ano de `today`.
+ */
+export function parseStatementText(text: string, today = new Date()): ParsedTx[] {
+  const headerYear = text.match(/\b(20\d{2})\b/)?.[1] ?? String(today.getFullYear());
+  const out: ParsedTx[] = [];
+  /** saldo acumulado da última linha que trouxe um, em centavos */
+  let prevBalance: number | null = null;
+
+  const signedCents = (minus: string | undefined, digits: string): number | null => {
+    const abs = parseAmountSigned(digits);
+    if (abs === null) return null;
+    return minus ? -Math.abs(abs) : Math.abs(abs);
+  };
+
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.replace(/\s+/g, " ").trim();
+    if (!line) continue;
+
+    const dateMatch = line.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/);
+    if (!dateMatch) continue;
+
+    const day = dateMatch[1].padStart(2, "0");
+    const month = dateMatch[2].padStart(2, "0");
+    let year = dateMatch[3] ?? headerYear;
+    if (year.length === 2) year = "20" + year;
+    const date = `${year}-${month}-${day}`;
+    if (Number(month) > 12 || Number(day) > 31) continue;
+
+    const rest = line.slice(dateMatch[0].length).trim();
+    if (!rest) continue;
+
+    MONEY_IN_LINE.lastIndex = 0;
+    const money = [...rest.matchAll(MONEY_IN_LINE)];
+    if (!money.length) continue;
+
+    // linha de saldo/total não é lançamento, mas serve de referência de saldo
+    if (NOT_A_TRANSACTION.test(rest)) {
+      const last = money[money.length - 1];
+      const v = signedCents(last[1], last[2]);
+      if (v !== null) prevBalance = v;
+      continue;
+    }
+
+    const [, minus, digits, dc] = money[0];
+    const abs = parseAmountSigned(digits);
+    if (abs === null || abs === 0) continue;
+
+    // saldo acumulado: só quando há um 2º valor na linha
+    let balance: number | null = null;
+    if (money.length >= 2) {
+      const last = money[money.length - 1];
+      balance = signedCents(last[1], last[2]);
+    }
+
+    let amountCents: number | null = null;
+    if (minus) amountCents = -abs;
+    else if (dc?.toUpperCase() === "D") amountCents = -abs;
+    else if (dc?.toUpperCase() === "C") amountCents = abs;
+    else if (balance !== null && prevBalance !== null) {
+      const delta = balance - prevBalance;
+      // só confia na variação se ela bate com o valor da linha (1 centavo de folga)
+      if (Math.abs(Math.abs(delta) - abs) <= 1) amountCents = delta < 0 ? -abs : abs;
+    }
+    if (amountCents === null) amountCents = -abs;
+
+    if (balance !== null) prevBalance = balance;
+
+    // descrição = a linha sem os valores
+    const description = rest
+      .replace(MONEY_IN_LINE, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!description) continue;
+
+    out.push({ date, description, amountCents });
+  }
+
   return out;
 }

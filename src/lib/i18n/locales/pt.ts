@@ -100,7 +100,7 @@ export const pt = {
     language: "Idioma",
     languageHint: "Muda o idioma e o formato de datas e números.",
     importStatement: "Importar extrato",
-    importStatementDesc: "Traga lançamentos de um arquivo CSV ou OFX do banco.",
+    importStatementDesc: "Traga lançamentos de um arquivo OFX, CSV ou PDF do banco.",
     aiTitle: "Recursos de IA",
     aiDesc: "Escreva o lançamento em linguagem natural e a IA preenche pra você.",
     aiNote:
@@ -590,10 +590,10 @@ export const pt = {
     cta: "Importar",
     exportXlsx: "Exportar Excel",
     dropTitle: "Solte o extrato aqui",
-    dropHint: "CSV ou OFX · você revisa antes de salvar",
+    dropHint: "OFX, CSV ou PDF · você revisa antes de salvar",
     title: "Importar extrato",
     intro:
-      "Importe um extrato em CSV ou OFX do seu banco. Valores negativos viram despesas; positivos, receitas.",
+      "Importe um extrato do seu banco em OFX, CSV ou PDF. Valores negativos viram despesas; positivos, receitas.",
     chooseFile: "Escolher arquivo",
     destAccount: "Conta de destino",
     colDate: "Data",
@@ -611,6 +611,18 @@ export const pt = {
     doneMsg: "{{count}} transações importadas! ✅",
     skipped: "{{count}} já existiam e foram ignoradas.",
     finish: "Concluir",
+    pdfPassword: "Esse PDF está protegido. Digite a senha do arquivo pra abrir.",
+    pdfPasswordWrong: "Senha incorreta. Tente de novo.",
+    pdfPasswordHint:
+      "É a senha que o banco pede pra abrir o extrato (costuma ser CPF, data de nascimento ou os dígitos da conta). Ela fica só neste aparelho.",
+    pdfNoRows:
+      "Não achei lançamentos nesse PDF. Se o seu banco oferecer OFX ou CSV, esses formatos são bem mais confiáveis.",
+    pdfFailed: "Não consegui ler esse PDF. Tente exportar em OFX ou CSV.",
+    readingPdf: "Lendo o PDF…",
+    pdfLocal: "O PDF é lido aqui no seu aparelho — o arquivo não é enviado pra lugar nenhum.",
+    aiPreviewTitle: "Ver o que vai pra IA ({{count}} linha(s))",
+    aiPreviewNote:
+      "O arquivo não é enviado — só estas descrições. CPF, conta, cartão e e-mail já saem mascarados.",
   },
   legal: {
     privacyTitle: "Política de Privacidade",

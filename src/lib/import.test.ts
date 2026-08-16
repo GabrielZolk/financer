@@ -6,6 +6,7 @@ import {
   guessCsvColumns,
   csvToTransactions,
   parseOfx,
+  parseStatementText,
 } from "./import";
 
 describe("parseDateFlexible", () => {
@@ -76,5 +77,59 @@ describe("OFX import", () => {
     expect(txs).toHaveLength(2);
     expect(txs[0]).toEqual({ date: "2026-06-05", description: "Mercado", amountCents: -15000 });
     expect(txs[1]).toEqual({ date: "2026-06-06", description: "Salario", amountCents: 500000 });
+  });
+});
+
+describe("PDF (texto do extrato)", () => {
+  // formato típico de extrato de conta corrente: data, histórico, valor e saldo
+  const extrato = `
+Extrato de conta corrente
+Agência 1234 Conta 56789-0
+Período: 01/08/2026 a 15/08/2026
+
+01/08 SALDO ANTERIOR 1.500,00
+02/08 PIX ENVIADO JOAO DA SILVA -250,00 1.250,00
+03/08 COMPRA CARTAO POSTO SHELL -91,00 1.159,00
+05/08 SALARIO EMPRESA X 3.200,00 4.359,00
+10/08 SALDO DO DIA 4.359,00
+`;
+
+  it("lê data, descrição e valor de cada linha", () => {
+    const txs = parseStatementText(extrato);
+    expect(txs).toHaveLength(3);
+    expect(txs[0]).toEqual({
+      date: "2026-08-02",
+      description: "PIX ENVIADO JOAO DA SILVA",
+      amountCents: -25000,
+    });
+    expect(txs[1].description).toBe("COMPRA CARTAO POSTO SHELL");
+    expect(txs[2].amountCents).toBe(320000);
+  });
+
+  it("ignora linhas de saldo/total", () => {
+    const txs = parseStatementText(extrato);
+    expect(txs.some((t) => /saldo/i.test(t.description))).toBe(false);
+  });
+
+  it("usa o primeiro valor da linha (o segundo é o saldo corrente)", () => {
+    const txs = parseStatementText("02/08/2026 UBER TRIP -25,90 1.474,10");
+    expect(txs[0].amountCents).toBe(-2590);
+  });
+
+  it("entende o estilo D/C em vez de sinal", () => {
+    const txs = parseStatementText(
+      "Extrato 2026\n03/08 TARIFA MENSALIDADE 30,00 D\n04/08 RENDIMENTO 12,34 C",
+    );
+    expect(txs[0].amountCents).toBe(-3000);
+    expect(txs[1].amountCents).toBe(1234);
+  });
+
+  it("pega o ano do cabeçalho quando a linha só tem dd/mm", () => {
+    const txs = parseStatementText("Extrato de 2024\n07/03 MERCADO -80,00");
+    expect(txs[0].date).toBe("2024-03-07");
+  });
+
+  it("devolve vazio quando o PDF não tem cara de extrato", () => {
+    expect(parseStatementText("Contrato de prestação de serviços")).toEqual([]);
   });
 });

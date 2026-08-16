@@ -103,7 +103,7 @@ export const es: Resources = {
     languageHint: "Cambia el idioma y el formato de fechas y números.",
     importStatement: "Importar extracto",
     importStatementDesc:
-      "Trae movimientos de un archivo CSV u OFX del banco.",
+      "Trae movimientos de un archivo OFX, CSV o PDF del banco.",
     aiTitle: "Funciones de IA",
     aiDesc: "Escribe el movimiento en lenguaje natural y la IA lo completa por ti.",
     aiNote:
@@ -589,10 +589,10 @@ export const es: Resources = {
     cta: "Importar",
     exportXlsx: "Exportar Excel",
     dropTitle: "Suelta el extracto aquí",
-    dropHint: "CSV u OFX · lo revisas antes de guardar",
+    dropHint: "OFX, CSV o PDF · lo revisas antes de guardar",
     title: "Importar extracto",
     intro:
-      "Importa un extracto en CSV u OFX de tu banco. Los importes negativos son gastos; los positivos, ingresos.",
+      "Importa un extracto de tu banco en OFX, CSV o PDF. Los importes negativos son gastos; los positivos, ingresos.",
     chooseFile: "Elegir archivo",
     destAccount: "Cuenta de destino",
     colDate: "Fecha",
@@ -610,6 +610,18 @@ export const es: Resources = {
     doneMsg: "¡{{count}} movimientos importados! ✅",
     skipped: "{{count}} ya existían y se omitieron.",
     finish: "Listo",
+    pdfPassword: "Este PDF está protegido. Escribe la contraseña del archivo para abrirlo.",
+    pdfPasswordWrong: "Contraseña incorrecta. Inténtalo de nuevo.",
+    pdfPasswordHint:
+      "Es la contraseña que pide tu banco para abrir el extracto (suele ser el documento, la fecha de nacimiento o los dígitos de la cuenta). Se queda solo en este dispositivo.",
+    pdfNoRows:
+      "No encontré movimientos en este PDF. Si tu banco ofrece OFX o CSV, esos formatos son mucho más fiables.",
+    pdfFailed: "No pude leer este PDF. Prueba a exportar en OFX o CSV.",
+    readingPdf: "Leyendo el PDF…",
+    pdfLocal: "El PDF se lee aquí en tu dispositivo — el archivo no se envía a ninguna parte.",
+    aiPreviewTitle: "Ver lo que va a la IA ({{count}} línea(s))",
+    aiPreviewNote:
+      "El archivo no se envía — solo estas descripciones. Documento, cuenta, tarjeta y e-mail ya salen enmascarados.",
   },
   legal: {
     privacyTitle: "Política de Privacidad",

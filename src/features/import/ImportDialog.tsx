@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Upload, FileText, Sparkles, Wand2 } from "lucide-react";
+import { Upload, FileText, Sparkles, Wand2, ShieldCheck } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Button, Label, Select } from "@/components/ui/primitives";
+import { Button, Input, Label, Select } from "@/components/ui/primitives";
 import { bulkCreate } from "@/db/repo";
 import { useAccounts, useAllTransactions, useCategories } from "@/db/hooks";
 import { useSettings } from "@/lib/settings";
@@ -16,12 +16,15 @@ import {
   parseCsvRows,
   guessCsvColumns,
   csvToTransactions,
+  parseStatementText,
   type ParsedTx,
   type CsvColumnGuess,
 } from "@/lib/import";
+import { pdfToText, PdfPasswordRequired } from "@/lib/pdfText";
+import { redactAll } from "@/lib/redact";
 import type { Transaction } from "@/db/types";
 
-type Mode = "idle" | "csv" | "ready" | "done";
+type Mode = "idle" | "csv" | "ready" | "done" | "password";
 
 export function ImportDialog({
   open,
@@ -58,6 +61,11 @@ export function ImportDialog({
   const [skippedCount, setSkippedCount] = useState(0);
   const [error, setError] = useState("");
   const [cats, setCats] = useState<(string | null)[]>([]);
+  // PDF protegido: guardamos o arquivo pra tentar de novo com a senha
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfPassword, setPdfPassword] = useState("");
+  const [pdfWrongPassword, setPdfWrongPassword] = useState(false);
+  const [reading, setReading] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState("");
 
@@ -71,12 +79,46 @@ export function ImportDialog({
     setSkippedCount(0);
     setCats([]);
     setAiError("");
+    setPdfFile(null);
+    setPdfPassword("");
+    setPdfWrongPassword(false);
   }
 
-  async function loadFile(file: File) {
+  async function loadFile(file: File, password?: string) {
     setError("");
     setFileName(file.name);
     if (!accountId && accounts[0]) setAccountId(accounts[0].id);
+
+    // PDF: o texto é extraído aqui no aparelho; o arquivo não sai daqui
+    if (/\.pdf$/i.test(file.name) || file.type === "application/pdf") {
+      setPdfFile(file);
+      setReading(true);
+      try {
+        const text = await pdfToText(file, password);
+        const txs = parseStatementText(text);
+        setPdfPassword("");
+        setPdfWrongPassword(false);
+        if (!txs.length) {
+          setError(t("imp.pdfNoRows"));
+          setMode("idle");
+          return;
+        }
+        setOfxTxs(txs);
+        setMode("ready");
+      } catch (e) {
+        if (e instanceof PdfPasswordRequired) {
+          setPdfWrongPassword(e.wrong);
+          setMode("password");
+        } else {
+          setError(t("imp.pdfFailed"));
+          setMode("idle");
+        }
+      } finally {
+        setReading(false);
+      }
+      return;
+    }
+
     const text = await file.text();
     const isOfx = /\.ofx$/i.test(file.name) || /<STMTTRN>/i.test(text);
     if (isOfx) {
@@ -141,6 +183,14 @@ export function ImportDialog({
 
   const autoFilled = cats.filter(Boolean).length;
 
+  /** exatamente o texto que iria pra IA — já mascarado — pra você conferir antes */
+  const pendingForAi = useMemo(
+    () =>
+      redactAll(parsed.filter((_, i) => !cats[i]).map((p) => p.description))
+        .redacted,
+    [parsed, cats],
+  );
+
   async function runAiCategorize() {
     if (aiBusy || !parsed.length) return;
     // manda pra IA só o que o histórico não resolveu (mais barato e mais rápido)
@@ -151,8 +201,10 @@ export function ImportDialog({
     setAiBusy(true);
     setAiError("");
     try {
+      // CPF, conta, cartão e e-mail saem antes de a descrição deixar o aparelho
+      const { redacted } = redactAll(todo.map((x) => x.description));
       const result = await categorizeImport(
-        todo.map((x) => x.description),
+        redacted,
         categories.map((c) => ({ id: c.id, name: c.name, kind: c.kind })),
       );
       setCats((prev) => {
@@ -227,10 +279,52 @@ export function ImportDialog({
         {mode === "idle" && (
           <div className="space-y-4">
             <p className="text-sm text-muted">{t("imp.intro")}</p>
-            <Button className="w-full" onClick={() => fileRef.current?.click()}>
-              <Upload size={16} /> {t("imp.chooseFile")}
+            <Button
+              className="w-full"
+              disabled={reading}
+              onClick={() => fileRef.current?.click()}
+            >
+              <Upload size={16} />{" "}
+              {reading ? t("imp.readingPdf") : t("imp.chooseFile")}
             </Button>
+            <p className="flex items-start gap-2 rounded-xl border border-border bg-surface-2/50 p-3 text-xs text-muted">
+              <ShieldCheck size={14} className="mt-0.5 shrink-0" />
+              {t("imp.pdfLocal")}
+            </p>
+            {error && <p className="text-sm text-expense">{error}</p>}
           </div>
+        )}
+
+        {mode === "password" && (
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (pdfFile && pdfPassword) void loadFile(pdfFile, pdfPassword);
+            }}
+          >
+            <div className="flex items-center gap-2 text-sm text-muted">
+              <FileText size={16} /> {fileName}
+            </div>
+            <p className="text-sm">
+              {pdfWrongPassword ? t("imp.pdfPasswordWrong") : t("imp.pdfPassword")}
+            </p>
+            <p className="text-xs text-muted">{t("imp.pdfPasswordHint")}</p>
+            <Input
+              type="password"
+              value={pdfPassword}
+              onChange={(e) => setPdfPassword(e.target.value)}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={reset}>
+                {t("common.cancel")}
+              </Button>
+              <Button type="submit" disabled={!pdfPassword || reading}>
+                {reading ? t("imp.readingPdf") : t("common.confirm")}
+              </Button>
+            </div>
+          </form>
         )}
 
         {(mode === "csv" || mode === "ready") && (
@@ -314,6 +408,24 @@ export function ImportDialog({
                   {t("imp.learned", { count: autoFilled })}
                 </p>
               )}
+              {aiAvailable && pendingForAi.length > 0 && (
+                <details className="mb-1 rounded-xl border border-border bg-surface-2/40 px-2.5 py-1.5">
+                  <summary className="cursor-pointer text-xs text-muted">
+                    <ShieldCheck size={12} className="mr-1 inline" />
+                    {t("imp.aiPreviewTitle", { count: pendingForAi.length })}
+                  </summary>
+                  <p className="mt-1.5 text-[11px] text-muted">
+                    {t("imp.aiPreviewNote")}
+                  </p>
+                  <ul className="mt-1.5 max-h-32 space-y-0.5 overflow-y-auto text-[11px]">
+                    {pendingForAi.map((d, i) => (
+                      <li key={i} className="truncate font-mono text-muted">
+                        {d}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
               {aiError && <p className="mb-1 text-xs text-expense">{aiError}</p>}
               <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-border p-2">
                 {parsed.slice(0, 30).map((row, i) => (
@@ -388,7 +500,7 @@ export function ImportDialog({
         <input
           ref={fileRef}
           type="file"
-          accept=".csv,.ofx,.txt"
+          accept=".csv,.ofx,.txt,.pdf"
           className="hidden"
           onChange={handleFile}
         />
