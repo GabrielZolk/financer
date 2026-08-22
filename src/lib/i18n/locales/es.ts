@@ -627,6 +627,7 @@ export const es: Resources = {
     removeRow: "Quitar línea",
     rowDone: "Listo",
     editHint: "Toca una línea para corregirla o quitarla antes de importar.",
+    categorizingN: "Categorizando {{done}}/{{total}}…",
   },
   legal: {
     privacyTitle: "Política de Privacidad",

@@ -624,6 +624,7 @@ export const en: Resources = {
     removeRow: "Remove row",
     rowDone: "Done",
     editHint: "Tap a row to fix or remove it before importing.",
+    categorizingN: "Categorizing {{done}}/{{total}}…",
   },
   legal: {
     privacyTitle: "Privacy Policy",

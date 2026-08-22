@@ -628,6 +628,7 @@ export const pt = {
     removeRow: "Remover linha",
     rowDone: "Pronto",
     editHint: "Toque numa linha pra corrigir ou remover antes de importar.",
+    categorizingN: "Categorizando {{done}}/{{total}}…",
   },
   legal: {
     privacyTitle: "Política de Privacidade",

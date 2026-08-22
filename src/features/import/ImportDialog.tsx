@@ -78,6 +78,10 @@ export function ImportDialog({
   const [reading, setReading] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState("");
+  const [aiProgress, setAiProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
 
   function reset() {
     setMode("idle");
@@ -288,6 +292,14 @@ export function ImportDialog({
     }
   }
 
+  /**
+   * Extrato de mês inteiro passa fácil de 150 linhas, e mandar tudo numa
+   * requisição só estoura o tempo da function na Vercel (o modelo ainda
+   * "pensa" antes de responder). Vai em lotes: cada um volta rápido, o
+   * resultado aparece na hora e uma falha no meio não joga fora o que já veio.
+   */
+  const AI_BATCH = 40;
+
   async function runAiCategorize() {
     if (aiBusy || !keptIndexes.length) return;
     // manda pra IA só o que o histórico não resolveu, e nunca linha removida
@@ -297,25 +309,34 @@ export function ImportDialog({
     if (!todo.length) return;
     setAiBusy(true);
     setAiError("");
+    setAiProgress({ done: 0, total: todo.length });
+    const catList = categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      kind: c.kind,
+    }));
     try {
-      // CPF, conta, cartão e e-mail saem antes de a descrição deixar o aparelho
-      const { redacted } = redactAll(todo.map((x) => x.description));
-      const result = await categorizeImport(
-        redacted,
-        categories.map((c) => ({ id: c.id, name: c.name, kind: c.kind })),
-      );
-      setCats((prev) => {
-        const next = rows.map((_, i) => prev[i] ?? null);
-        todo.forEach((x, k) => {
-          if (result[k]) next[x.i] = result[k];
+      for (let start = 0; start < todo.length; start += AI_BATCH) {
+        const batch = todo.slice(start, start + AI_BATCH);
+        // CPF, conta, cartão e e-mail saem antes de a descrição deixar o aparelho
+        const { redacted } = redactAll(batch.map((x) => x.description));
+        const result = await categorizeImport(redacted, catList);
+        setCats((prev) => {
+          const next = rows.map((_, i) => prev[i] ?? null);
+          batch.forEach((x, k) => {
+            if (result[k]) next[x.i] = result[k];
+          });
+          return next;
         });
-        return next;
-      });
+        setAiProgress({ done: start + batch.length, total: todo.length });
+      }
     } catch (e) {
       const code = e instanceof AiError ? e.code : "ai_error";
+      // o que já voltou continua preenchido; o aviso é só do que faltou
       setAiError(t(`ai.err.${code}`, { defaultValue: t("ai.err.ai_error") }));
     } finally {
       setAiBusy(false);
+      setAiProgress(null);
     }
   }
 
@@ -508,7 +529,9 @@ export function ImportDialog({
                   >
                     <Sparkles size={14} />
                     {aiBusy
-                      ? t("imp.categorizing")
+                      ? aiProgress
+                        ? t("imp.categorizingN", aiProgress)
+                        : t("imp.categorizing")
                       : autoFilled === keptIndexes.length
                         ? t("imp.allCategorized")
                         : t("imp.categorizeRest", {
